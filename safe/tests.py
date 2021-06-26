@@ -100,3 +100,17 @@ class UsersManagersTests(TestCase):
         self.assertEqual(len(response.data), 2)
 
 
+    def test_post_safe_for_user(self):
+        User = get_user_model()
+        User.objects.create_user(email='alice@user.com', password='foo')
+        data = {
+            'name': 'foosafe',
+            'monthly_payment': '2'
+        }
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.post(reverse('safe-list'),
+                           data=json.dumps(data),
+                           content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], 'PPT')

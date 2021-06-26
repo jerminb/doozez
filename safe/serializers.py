@@ -20,7 +20,7 @@ class GroupSerializer(serializers.ModelSerializer):
 class SafeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Safe
-        fields = ['name', 'id', 'initiator']
+        fields = ['status', 'name', 'monthly_payment', 'id', 'initiator']
 
 
 class InvitationReadSerializer(serializers.ModelSerializer):

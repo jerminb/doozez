@@ -7,16 +7,22 @@ from rest_framework.response import Response
 
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, InvitationUpsertSerializer
 from .models import Safe, DoozezUser, Invitation
-from .services import InvitationService
+from .services import InvitationService, SafeService
 
 
 class UserViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows users to be viewed or edited.
     """
-    queryset = DoozezUser.objects.all().order_by('-date_joined')
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = DoozezUser.objects.all().order_by('-date_joined')
+        email = self.request.query_params.get('email')
+        if email is not None:
+            queryset = queryset.filter(email__istartswith=email)
+        return queryset
 
 
 class GroupViewSet(viewsets.ModelViewSet):
@@ -38,10 +44,10 @@ class SafeViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         serializer = SafeSerializer(data=request.data)
-        service = InvitationService()
+        service = SafeService()
         if serializer.is_valid():
-            invitation = service.createInvitation(user, serializer.validated_data['recipient'], serializer.validated_data['safe'])
-            return Response(data=InvitationUpsertSerializer(invitation, context={'request': request}).data, status=status.HTTP_201_CREATED)
+            safe = service.createSafe(user, serializer.validated_data['name'], serializer.validated_data['monthly_payment'])
+            return Response(data=SafeSerializer(safe, context={'request': request}).data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
