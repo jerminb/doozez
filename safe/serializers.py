@@ -1,28 +1,38 @@
 from rest_framework import serializers
 from django.contrib.auth.models import Group
 
-from .models import Safe, DoozezUser
+from .models import Safe, DoozezUser, Invitation
+from .services import InvitationService
 
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoozezUser
-        fields = ['url', 'email', 'groups']
+        fields = ['email', 'groups']
 
 
-class GroupSerializer(serializers.HyperlinkedModelSerializer):
+class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
-        fields = ['url', 'name']
+        fields = ['name']
 
 
-class SafeSerializer(serializers.HyperlinkedModelSerializer):
+class SafeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Safe
-        fields = ['url', 'name', 'id']
+        fields = ['name', 'id', 'initiator']
 
 
-class InvitationSerializer(serializers.HyperlinkedModelSerializer):
+class InvitationReadSerializer(serializers.ModelSerializer):
+    recipient = UserSerializer()
+    safe = SafeSerializer()
     class Meta:
-        model = Safe
-        fields = ['url', 'status', 'sender', 'recipient', 'safe']
+        model = Invitation
+        fields = ['status', 'recipient', 'safe']
+        depth = 1
+
+
+class InvitationUpsertSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Invitation
+        fields = ['status', 'recipient', 'safe']

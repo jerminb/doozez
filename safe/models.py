@@ -1,6 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator
 from django.utils.translation import ugettext_lazy as _
 
 from .managers import DoozezUserManager
@@ -19,9 +19,24 @@ class DoozezUser(AbstractUser):
         return self.email
 
 
+class SafeStatus(models.TextChoices):
+    PendingParticipants = 'PPT', _('PendingParticipants')
+    PendingDraw = 'PDR', _('PendingDraw')
+    PendingEntryPayment = 'PEP', _('PendingEntryPayment')
+    Active = 'ACT', _('Active')
+    Complete = 'CPT', _('Complete')
+
+
 class Safe(models.Model):
+    status = models.CharField(
+        max_length=3,
+        choices=SafeStatus.choices,
+        default=SafeStatus.PendingParticipants,
+    )
     name = models.CharField(max_length=60)
-    id = models.AutoField(primary_key = True)
+    monthly_payment = models.FloatField(validators=[MinValueValidator(0.0), ], default=0)
+    total_participants = models.PositiveIntegerField(default=0)
+    initiator = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='initiator', null=True)
 
     def __str__(self):
         return self.name
