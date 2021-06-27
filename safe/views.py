@@ -60,20 +60,23 @@ class InvitationViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows safes to be viewed or edited.
     """
+    def get_serializer_class(self):
+        if self.request and (self.request.method == 'POST' or self.request.method == 'PUT'):
+            return InvitationUpsertSerializer
+        else:
+            return InvitationReadSerializer
+
     def get_queryset(self):
         """
         This view should return a list of all the invitations
         for the currently authenticated user.
         """
         user = self.request.user
-        result = Invitation.objects.select_related('recipient').filter(Q(recipient=user) | Q(sender=user))
+        safe = self.request.query_params.get('safe')
+        result = Invitation.objects.filter(Q(recipient=user) | Q(sender=user))
+        if safe is not None:
+            result = result.filter(safe__id=safe)
         return result
-
-    def get_serializer_class(self):
-        if self.request and (self.request.method == 'POST' or self.request.method == 'PUT'):
-            return InvitationUpsertSerializer
-        else:
-            return InvitationReadSerializer
 
     def create(self, request):
         """

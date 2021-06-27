@@ -29,7 +29,6 @@ class InvitationReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invitation
         fields = ['status', 'recipient', 'safe']
-        depth = 1
 
 
 class InvitationUpsertSerializer(serializers.ModelSerializer):

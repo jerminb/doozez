@@ -50,12 +50,6 @@ class UsersManagersTests(TestCase):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
-        factory = APIRequestFactory()
-        request = factory.get('/')
-
-        context = {'request': Request(request)}
-        user_serializer = UserSerializer(alice, context=context)
-        safe_serializer = SafeSerializer(safe, context=context)
         data = {
             'recipient': alice.pk,
             'safe': safe.pk
@@ -99,6 +93,21 @@ class UsersManagersTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
 
+    def test_get_invitation_for_safe_id(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        bob = User.objects.create_user(email='bob@user.com', password='foo')
+        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        safebob = Safe.objects.create(name='safebob', monthly_payment=1, total_participants=1, initiator=bob)
+        Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        Invitation.objects.create(status=InvitationStatus.Pending, sender=bob, recipient=alice, safe=safebob)
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('invitation-list')+"?safe=1",
+                           content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['recipient']['email'], 'bob@user.com')
 
     def test_post_safe_for_user(self):
         User = get_user_model()
@@ -114,3 +123,13 @@ class UsersManagersTests(TestCase):
                            content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'PPT')
+
+    def test_get_safe_details_with_id(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('safe-detail', args=[safealice.pk]),
+                              content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
