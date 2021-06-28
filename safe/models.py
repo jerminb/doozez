@@ -50,7 +50,7 @@ class InvitationStatus(models.TextChoices):
 
 class Invitation(models.Model):
     class Meta:
-        unique_together = (('sender', 'safe'),)
+        unique_together = (('recipient', 'safe'),)
 
     status = models.CharField(
         max_length=3,
