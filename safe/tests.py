@@ -1,14 +1,12 @@
 import json
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
-from rest_framework.request import Request
 from rest_framework.reverse import reverse
-from rest_framework.test import APIRequestFactory, APIClient
+from rest_framework.test import APIClient
 from rest_framework import status
 
 from .models import Safe, Invitation, InvitationStatus
-
-from .serializers import UserSerializer, SafeSerializer
 
 
 class UsersManagersTests(TestCase):
@@ -49,16 +47,17 @@ class UsersManagersTests(TestCase):
     def test_post_invitations_for_user(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
+        bob = User.objects.create_user(email='bob@user.com', password='foo')
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
         data = {
-            'recipient': alice.pk,
+            'recipient': bob.pk,
             'safe': safe.pk
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
         response = client.post(reverse('invitation-list'),
-                           data=json.dumps(data),
-                           content_type='application/json')
+                               data=json.dumps(data),
+                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'PND')
 
@@ -74,7 +73,7 @@ class UsersManagersTests(TestCase):
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
         response = client.get(reverse('invitation-list'),
-                           content_type='application/json')
+                              content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
@@ -89,7 +88,7 @@ class UsersManagersTests(TestCase):
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
         response = client.get(reverse('invitation-list'),
-                           content_type='application/json')
+                              content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 2)
 
@@ -103,11 +102,12 @@ class UsersManagersTests(TestCase):
         Invitation.objects.create(status=InvitationStatus.Pending, sender=bob, recipient=alice, safe=safebob)
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
-        response = client.get(reverse('invitation-list')+"?safe=1",
-                           content_type='application/json')
+        response = client.get(reverse('invitation-list') + "?safe=1",
+                              content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['recipient']['email'], 'bob@user.com')
+        self.assertEqual(response.data[0]['id'], 1)
 
     def test_post_safe_for_user(self):
         User = get_user_model()
@@ -119,8 +119,8 @@ class UsersManagersTests(TestCase):
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
         response = client.post(reverse('safe-list'),
-                           data=json.dumps(data),
-                           content_type='application/json')
+                               data=json.dumps(data),
+                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'PPT')
 
@@ -133,3 +133,4 @@ class UsersManagersTests(TestCase):
         response = client.get(reverse('safe-detail', args=[safealice.pk]),
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], 1)

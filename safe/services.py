@@ -1,4 +1,5 @@
-from .models import Invitation, InvitationStatus, Safe, SafeStatus
+from .models import Invitation, Safe
+from django.core.exceptions import ValidationError
 
 
 class InvitationService(object):
@@ -6,7 +7,10 @@ class InvitationService(object):
         pass
 
     def createInvitation(self, current_user, recipient, safe):
-        invitation = Invitation(status=InvitationStatus.Pending, sender=current_user, recipient=recipient, safe=safe)
+        if recipient.email == current_user.email:
+            # sender can't be recipient
+            raise ValidationError("recipient and sender can't be the same user")
+        invitation = Invitation(sender=current_user, recipient=recipient, safe=safe)
         invitation.save()
         return invitation
 
