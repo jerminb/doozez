@@ -7,7 +7,7 @@ from .models import Safe, DoozezUser, Invitation, ActionPayload
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoozezUser
-        fields = ['id', 'email', 'groups']
+        fields = ['id', 'email', 'first_name', 'last_name', 'groups']
 
 
 class GroupSerializer(serializers.ModelSerializer):
