@@ -40,4 +40,4 @@ class InvitationUpsertSerializer(serializers.ModelSerializer):
 class ActionPayloadSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActionPayload
-        fields = ['__all__']
+        fields = '__all__'
