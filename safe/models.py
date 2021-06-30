@@ -8,7 +8,7 @@ from .managers import DoozezUserManager
 
 class Action(models.TextChoices):
     ACCEPT = 'ACCEPT', _('Accept')
-    CANCEL = 'CANCEL', _('Cancel')
+    DECLINE = 'DECLINE', _('Decline')
 
 
 class ActionPayload(models.Model):
@@ -78,6 +78,11 @@ class Invitation(models.Model):
     safe = models.ForeignKey(Safe, on_delete=models.CASCADE)
 
 
+class ParticipantRole(models.TextChoices):
+    Initiator = 'INT', _('Initiator')
+    Participant = 'PCT', _('Participant')
+
+
 class ParticipationStatus(models.TextChoices):
     Pending = 'PND', _('Pending')
     Active = 'ACT', _('Active')
@@ -86,6 +91,11 @@ class ParticipationStatus(models.TextChoices):
 
 
 class Participation(models.Model):
+    user_role = status = models.CharField(
+        max_length=3,
+        choices=ParticipantRole.choices,
+        default=ParticipantRole.Participant,
+    )
     status = models.CharField(
         max_length=3,
         choices=ParticipationStatus.choices,

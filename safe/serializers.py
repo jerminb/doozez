@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import Group
 
-from .models import Safe, DoozezUser, Invitation, ActionPayload
+from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -23,6 +23,7 @@ class SafeSerializer(serializers.ModelSerializer):
 
 
 class InvitationReadSerializer(serializers.ModelSerializer):
+    status = serializers.CharField(source='get_status_display')
     recipient = UserSerializer()
     safe = SafeSerializer()
 
@@ -32,6 +33,8 @@ class InvitationReadSerializer(serializers.ModelSerializer):
 
 
 class InvitationUpsertSerializer(serializers.ModelSerializer):
+    status = serializers.CharField(source='get_status_display', required=False)
+
     class Meta:
         model = Invitation
         fields = ['status', 'recipient', 'safe']
@@ -40,4 +43,15 @@ class InvitationUpsertSerializer(serializers.ModelSerializer):
 class ActionPayloadSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActionPayload
+        fields = '__all__'
+
+
+class ParticipationSerializer(serializers.ModelSerializer):
+    user_role = serializers.CharField(source='get_user_role_display')
+    status = serializers.CharField(source='get_status_display')
+    user = UserSerializer()
+    safe = SafeSerializer()
+
+    class Meta:
+        model = Participation
         fields = '__all__'

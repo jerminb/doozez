@@ -5,8 +5,8 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
-    InvitationUpsertSerializer, ActionPayloadSerializer
-from .models import Safe, DoozezUser, Invitation
+    InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationSerializer
+from .models import Safe, DoozezUser, Invitation, Action, Participation
 from .services import InvitationService, SafeService
 
 
@@ -38,6 +38,7 @@ class SafeViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows safes to be viewed or edited.
     """
+
     def create(self, request):
         """
         Create an invitation with current user as Sender
@@ -46,8 +47,10 @@ class SafeViewSet(viewsets.ModelViewSet):
         serializer = SafeSerializer(data=request.data)
         service = SafeService()
         if serializer.is_valid():
-            safe = service.createSafe(user, serializer.validated_data['name'], serializer.validated_data['monthly_payment'])
-            return Response(data=SafeSerializer(safe, context={'request': request}).data, status=status.HTTP_201_CREATED)
+            safe = service.createSafe(user, serializer.validated_data['name'],
+                                      serializer.validated_data['monthly_payment'])
+            return Response(data=SafeSerializer(safe, context={'request': request}).data,
+                            status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -57,11 +60,14 @@ class SafeViewSet(viewsets.ModelViewSet):
 
 
 class InvitationViewSet(viewsets.ModelViewSet):
+    invitation_service = InvitationService()
     """
     API endpoint that allows safes to be viewed or edited.
     """
+
     def get_serializer_class(self):
-        if self.request and (self.request.method == 'POST' or self.request.method == 'PUT'):
+        if self.request and (self.request.method == 'POST' or self.request.method == 'PUT'
+                             or self.request.method == 'PATCH'):
             return InvitationUpsertSerializer
         else:
             return InvitationReadSerializer
@@ -84,17 +90,39 @@ class InvitationViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         serializer = self.get_serializer_class()(data=request.data)
-        service = InvitationService()
         if serializer.is_valid():
-            invitation = service.createInvitation(user, serializer.validated_data['recipient'], serializer.validated_data['safe'])
-            return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data, status=status.HTTP_201_CREATED)
+            invitation = self.invitation_service.createInvitation(user, serializer.validated_data['recipient'],
+                                                                  serializer.validated_data['safe'])
+            return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data,
+                            status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def accept_invitation(self):
+        invitation = self.get_object()
+        return self.invitation_service.acceptInvitation(invitation)
+
+    def decline_invitation(self):
+        invitation = self.get_object()
+        return self.invitation_service.declineInvitation(invitation)
 
     def partial_update(self, request, *args, **kwargs):
         serializer = ActionPayloadSerializer(data=request.data)
         if serializer.is_valid():
-            pass
-        return Response(status=status.HTTP_204_NO_CONTENT)
+            options = {Action.ACCEPT: self.accept_invitation,
+                       Action.DECLINE: self.decline_invitation,
+                       }
+            invitation = options[serializer.validated_data['action']]()
+            return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     permission_classes = [permissions.IsAuthenticated]
+
+
+class ParticipationViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ReadOnly ViewSet for Participation
+    """
+    queryset = Participation.objects.all()
+    serializer_class = ParticipationSerializer

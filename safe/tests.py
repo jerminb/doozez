@@ -6,7 +6,7 @@ from rest_framework.reverse import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from .models import Safe, Invitation, InvitationStatus
+from .models import Safe, Invitation, InvitationStatus, PaymentMethod
 
 
 class UsersManagersTests(TestCase):
@@ -59,7 +59,7 @@ class UsersManagersTests(TestCase):
                                data=json.dumps(data),
                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['status'], 'PND')
+        self.assertEqual(response.data['status'], 'Pending')
 
     def test_get_invitations_for_recipient(self):
         User = get_user_model()
@@ -115,19 +115,40 @@ class UsersManagersTests(TestCase):
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         bob = User.objects.create_user(email='bob@user.com', password='foo')
         invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        PaymentMethod.objects.create(user=bob, is_default=True)
         data = {
-            'action': 'accept'
+            'action': 'ACCEPT'
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
         response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
                                data=json.dumps(data),
                                content_type='application/json')
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'Accepted')
+
+    def test_decline_invitation(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        bob = User.objects.create_user(email='bob@user.com', password='foo')
+        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        PaymentMethod.objects.create(user=bob, is_default=True)
+        data = {
+            'action': 'DECLINE'
+        }
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
+                               data=json.dumps(data),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'Declined')
 
     def test_post_safe_for_user(self):
         User = get_user_model()
-        User.objects.create_user(email='alice@user.com', password='foo')
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        PaymentMethod.objects.create(user=alice, is_default=True)
         data = {
             'name': 'foosafe',
             'monthly_payment': '2'
@@ -139,6 +160,19 @@ class UsersManagersTests(TestCase):
                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'PPT')
+        response = client.get(reverse('participation-detail', args=[1]),
+                              content_type='application/json')
+        self.assertEqual(response.data['user']['email'], "alice@user.com")
+
+    def test_post_participants(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.post(reverse('participation-list'),
+                               data=json.dumps({}),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def test_get_safe_details_with_id(self):
         User = get_user_model()

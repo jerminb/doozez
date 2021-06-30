@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
 
 from .models import Safe, PaymentMethod, InvitationStatus
-from .services import InvitationService
+from .services import InvitationService, SafeService, Participation, ParticipantRole
 
 
 class ServiceTest(TestCase):
@@ -35,7 +35,10 @@ class ServiceTest(TestCase):
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
         invitation = service.acceptInvitation(invitation)
+        participation = Participation.objects.first()
         self.assertEqual(invitation.status, InvitationStatus.Accepted)
+        self.assertEqual(participation.user.pk, 2)
+        self.assertEqual(participation.user_role, ParticipantRole.Participant)
 
     def test_accept_invite_with_no_payment_method(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
@@ -45,3 +48,13 @@ class ServiceTest(TestCase):
         invitation = service.createInvitation(alice, bob, safe)
         with self.assertRaises(ValidationError):
             service.acceptInvitation(invitation)
+
+    def test_participant_after_create_safe(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        PaymentMethod.objects.create(user=alice, is_default=True)
+        service = SafeService()
+        service.createSafe(alice, 'foosafe', 1)
+        participation = Participation.objects.first()
+        self.assertEqual(participation.user.pk, 1)
+        self.assertEqual(participation.user_role, ParticipantRole.Initiator)
+

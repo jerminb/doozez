@@ -1,4 +1,4 @@
-from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod
+from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, ParticipantRole
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -24,28 +24,27 @@ class InvitationService(object):
         payment_method = payment_method_service.getDefaultPaymentMethodForUser(invitation.recipient)
         if payment_method is None:
             raise ValidationError("no payment method found for user")
-        participation_service.createParticipation(invitation.recipient, invitation, invitation.safe, payment_method)
+        participation_service.createParticipation(invitation.recipient, invitation, invitation.safe,
+                                                  payment_method, ParticipantRole.Participant)
         invitation.status = InvitationStatus.Accepted
         invitation.save()
         return invitation
 
-
-class SafeService(object):
-    def __init__(self):
-        pass
-
-    def createSafe(self, current_user, name, monthly_payment):
-        safe = Safe(name=name, monthly_payment=monthly_payment, total_participants=1, initiator=current_user)
-        safe.save()
-        return safe
+    def declineInvitation(self, invitation):
+        if invitation.status != InvitationStatus.Pending and invitation.status != InvitationStatus.Declined:
+            raise ValidationError("only pending or declined invitations can be declined")
+        invitation.status = InvitationStatus.Declined
+        invitation.save()
+        return invitation
 
 
 class ParticipationService(object):
     def __init__(self):
         pass
 
-    def createParticipation(self, user, invitation, safe, payment_method):
-        participation = Participation(user=user, invitation=invitation, safe=safe, payment_method=payment_method)
+    def createParticipation(self, user, invitation, safe, payment_method, role):
+        participation = Participation(user=user, invitation=invitation, safe=safe,
+                                      payment_method=payment_method, user_role=role)
         participation.save()
         return participation
 
@@ -56,3 +55,23 @@ class PaymentMethodService(object):
 
     def getDefaultPaymentMethodForUser(self, user):
         return PaymentMethod.objects.filter(Q(user=user) & Q(is_default=True)).first()
+
+
+class SafeService(object):
+    participation_service = ParticipationService()
+    payment_method_service = PaymentMethodService()
+
+    def __init__(self):
+        pass
+
+    def createSafe(self, current_user, name, monthly_payment):
+        payment_method = self.payment_method_service.getDefaultPaymentMethodForUser(current_user)
+        if payment_method is None:
+            raise ValidationError("no payment method found for user")
+        safe = Safe(name=name, monthly_payment=monthly_payment, total_participants=1, initiator=current_user)
+        safe.save()
+        self.participation_service.createParticipation(user=current_user, safe=safe,
+                                                       payment_method=payment_method,
+                                                       role=ParticipantRole.Initiator,
+                                                       invitation=None)
+        return safe
