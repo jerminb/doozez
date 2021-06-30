@@ -126,3 +126,4 @@ class ParticipationViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Participation.objects.all()
     serializer_class = ParticipationSerializer
+    permission_classes = [permissions.IsAuthenticated]
