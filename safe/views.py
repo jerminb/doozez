@@ -1,11 +1,11 @@
-from django.shortcuts import render
 from django.contrib.auth.models import Group
 from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework import permissions, status
 from rest_framework.response import Response
 
-from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, InvitationUpsertSerializer
+from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
+    InvitationUpsertSerializer, ActionPayloadSerializer
 from .models import Safe, DoozezUser, Invitation
 from .services import InvitationService, SafeService
 
@@ -90,5 +90,11 @@ class InvitationViewSet(viewsets.ModelViewSet):
             return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def partial_update(self, request, *args, **kwargs):
+        serializer = ActionPayloadSerializer(data=request.data)
+        if serializer.is_valid():
+            pass
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     permission_classes = [permissions.IsAuthenticated]

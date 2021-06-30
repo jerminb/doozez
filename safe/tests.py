@@ -109,6 +109,22 @@ class UsersManagersTests(TestCase):
         self.assertEqual(response.data[0]['recipient']['email'], 'bob@user.com')
         self.assertEqual(response.data[0]['id'], 1)
 
+    def test_accept_invitation(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        bob = User.objects.create_user(email='bob@user.com', password='foo')
+        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        data = {
+            'action': 'accept'
+        }
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
+                               data=json.dumps(data),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
     def test_post_safe_for_user(self):
         User = get_user_model()
         User.objects.create_user(email='alice@user.com', password='foo')

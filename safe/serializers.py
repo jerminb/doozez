@@ -1,14 +1,13 @@
 from rest_framework import serializers
 from django.contrib.auth.models import Group
 
-from .models import Safe, DoozezUser, Invitation
-from .services import InvitationService
+from .models import Safe, DoozezUser, Invitation, ActionPayload
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = DoozezUser
-        fields = ['email', 'groups']
+        fields = ['id', 'email', 'groups']
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -26,6 +25,7 @@ class SafeSerializer(serializers.ModelSerializer):
 class InvitationReadSerializer(serializers.ModelSerializer):
     recipient = UserSerializer()
     safe = SafeSerializer()
+
     class Meta:
         model = Invitation
         fields = ['id', 'status', 'recipient', 'safe']
@@ -35,3 +35,9 @@ class InvitationUpsertSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invitation
         fields = ['status', 'recipient', 'safe']
+
+
+class ActionPayloadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActionPayload
+        fields = ['__all__']
