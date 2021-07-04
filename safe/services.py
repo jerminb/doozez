@@ -53,9 +53,26 @@ class PaymentMethodService(object):
     def __init__(self):
         pass
 
+    def getAllPaymentMethodsForUser(self, user):
+        return PaymentMethod.objects.filter(Q(user=user)).all()
+
     def getDefaultPaymentMethodForUser(self, user):
         return PaymentMethod.objects.filter(Q(user=user) & Q(is_default=True)).first()
 
+    def createPaymentMethodForUser(self, user, is_default):
+        all = self.getAllPaymentMethodsForUser(user)
+        if len(all) == 0:
+            # first payment method is always default
+            return PaymentMethod.objects.create(user=user, is_default=True)
+        else:
+            temp_is_default = is_default
+            default = all.filter(is_default=True).first()
+            if default is None:
+                temp_is_default = True
+            else:
+                default.is_default = False
+                default.save()
+            return PaymentMethod.objects.create(user=user, is_default=temp_is_default)
 
 class SafeService(object):
     participation_service = ParticipationService()

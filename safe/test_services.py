@@ -3,8 +3,8 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
 
-from .models import Safe, PaymentMethod, InvitationStatus
-from .services import InvitationService, SafeService, Participation, ParticipantRole
+from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole
+from .services import InvitationService, SafeService, PaymentMethodService
 
 
 class ServiceTest(TestCase):
@@ -58,3 +58,18 @@ class ServiceTest(TestCase):
         self.assertEqual(participation.user.pk, 1)
         self.assertEqual(participation.user_role, ParticipantRole.Initiator)
 
+    def test_get_all_payments_for_user(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        PaymentMethod.objects.create(user=alice, is_default=True)
+        PaymentMethod.objects.create(user=alice, is_default=False)
+        payment_methods = PaymentMethodService().getAllPaymentMethodsForUser(user=alice)
+        self.assertEqual(len(payment_methods), 2)
+
+    def test_create_payments_for_user(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        pm1 = PaymentMethodService().createPaymentMethodForUser(user=alice, is_default=False)
+        self.assertEqual(pm1.is_default, True)
+        pm2 = PaymentMethodService().createPaymentMethodForUser(user=alice, is_default=True)
+        self.assertEqual(pm2.is_default, True)
+        payment_methods = PaymentMethodService().getAllPaymentMethodsForUser(user=alice)
+        self.assertEqual(payment_methods[0].is_default, False)

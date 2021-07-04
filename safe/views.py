@@ -5,9 +5,9 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
-    InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationSerializer
-from .models import Safe, DoozezUser, Invitation, Action, Participation
-from .services import InvitationService, SafeService
+    InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationSerializer, PaymentMethodSerializer
+from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod
+from .services import InvitationService, SafeService, PaymentMethodService
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -41,7 +41,7 @@ class SafeViewSet(viewsets.ModelViewSet):
 
     def create(self, request):
         """
-        Create an invitation with current user as Sender
+        Create an safe with current user as initiator
         """
         user = self.request.user
         serializer = SafeSerializer(data=request.data)
@@ -113,7 +113,8 @@ class InvitationViewSet(viewsets.ModelViewSet):
                        Action.DECLINE: self.decline_invitation,
                        }
             invitation = options[serializer.validated_data['action']]()
-            return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data, status=status.HTTP_200_OK)
+            return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data,
+                            status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -127,3 +128,32 @@ class ParticipationViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Participation.objects.all()
     serializer_class = ParticipationSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+class PaymentMethodViewSet(viewsets.ModelViewSet):
+    serializer_class = PaymentMethodSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        This view should return a list of all the PaymentMethods
+        for the currently authenticated user.
+        """
+        user = self.request.user
+        result = PaymentMethod.objects.filter(Q(user=user))
+        return result
+
+    def create(self, request):
+        """
+        Create a payment-method for current user
+        """
+        user = self.request.user
+        serializer = self.get_serializer_class()(data=request.data)
+        service = PaymentMethodService()
+        if serializer.is_valid():
+            payment_method = service.createPaymentMethodForUser(user,
+                                                serializer.validated_data['is_default'])
+            return Response(data=self.get_serializer_class()(payment_method, context={'request': request}).data,
+                            status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

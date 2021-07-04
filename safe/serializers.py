@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import Group
 
-from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation
+from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation, PaymentMethod
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -23,7 +23,6 @@ class SafeSerializer(serializers.ModelSerializer):
 
 
 class InvitationReadSerializer(serializers.ModelSerializer):
-    status = serializers.CharField(source='get_status_display')
     recipient = UserSerializer()
     safe = SafeSerializer()
 
@@ -55,3 +54,9 @@ class ParticipationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Participation
         fields = '__all__'
+
+
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentMethod
+        fields = ['id', 'is_default']
