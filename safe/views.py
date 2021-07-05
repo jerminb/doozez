@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth.models import Group
 from django.db.models import Q
 from rest_framework import viewsets
@@ -98,11 +100,18 @@ class InvitationViewSet(viewsets.ModelViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def accept_invitation(self):
-        invitation = self.get_object()
-        return self.invitation_service.acceptInvitation(invitation)
+    def get_payment_method_id_from_json(self, json_data):
+        extra_data = json.loads(json_data)
+        return extra_data.get("payment_method_id", None)
 
-    def decline_invitation(self):
+    def accept_invitation(self, json_data):
+        invitation = self.get_object()
+        payment_method_id = self.get_payment_method_id_from_json(json_data)
+        if payment_method_id is None:
+            raise ValueError("payment_method_id is null")
+        return self.invitation_service.acceptInvitation(invitation, payment_method_id)
+
+    def decline_invitation(self, json_data):
         invitation = self.get_object()
         return self.invitation_service.declineInvitation(invitation)
 
@@ -112,7 +121,7 @@ class InvitationViewSet(viewsets.ModelViewSet):
             options = {Action.ACCEPT: self.accept_invitation,
                        Action.DECLINE: self.decline_invitation,
                        }
-            invitation = options[serializer.validated_data['action']]()
+            invitation = options[serializer.validated_data['action']](serializer.validated_data['json_data'])
             return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data,
                             status=status.HTTP_200_OK)
         else:

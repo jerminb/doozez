@@ -115,9 +115,10 @@ class UsersManagersTests(TestCase):
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         bob = User.objects.create_user(email='bob@user.com', password='foo')
         invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
-        PaymentMethod.objects.create(user=bob, is_default=True)
+        bob_payment_method = PaymentMethod.objects.create(user=bob, is_default=True)
         data = {
-            'action': 'ACCEPT'
+            'action': 'ACCEPT',
+            'json_data': '{"payment_method_id":' + str(bob_payment_method.pk) + '}'
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
@@ -127,6 +128,22 @@ class UsersManagersTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'Accepted')
 
+    def test_accept_invitation_with_no_data(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        bob = User.objects.create_user(email='bob@user.com', password='foo')
+        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        data = {
+            'action': 'ACCEPT'
+        }
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
+                               data=json.dumps(data),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def test_decline_invitation(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
@@ -135,7 +152,7 @@ class UsersManagersTests(TestCase):
         invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
         PaymentMethod.objects.create(user=bob, is_default=True)
         data = {
-            'action': 'DECLINE'
+            'action': 'DECLINE',
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')

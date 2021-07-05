@@ -49,6 +49,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'safe.exception_handlers.ErrorHandlerMiddleware'
 ]
 
 ROOT_URLCONF = 'doozez.urls'

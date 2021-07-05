@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import Group
 
 from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation, PaymentMethod
+from .fields import NullableJSONField
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -40,9 +41,11 @@ class InvitationUpsertSerializer(serializers.ModelSerializer):
 
 
 class ActionPayloadSerializer(serializers.ModelSerializer):
+    json_data = NullableJSONField(required=False, allow_null=True)
+
     class Meta:
         model = ActionPayload
-        fields = '__all__'
+        fields = ['action', 'json_data']
 
 
 class ParticipationSerializer(serializers.ModelSerializer):

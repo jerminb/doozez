@@ -16,12 +16,13 @@ class InvitationService(object):
         invitation.save()
         return invitation
 
-    def acceptInvitation(self, invitation):
+    def acceptInvitation(self, invitation, payment_method_id):
         if invitation.status != InvitationStatus.Pending and invitation.status != InvitationStatus.Accepted:
             raise ValidationError("only pending or accepted invitations can be accepted")
         participation_service = ParticipationService()
         payment_method_service = PaymentMethodService()
-        payment_method = payment_method_service.getDefaultPaymentMethodForUser(invitation.recipient)
+        payment_method = payment_method_service.getPaymentMethodsWithQ(
+            Q(user=invitation.recipient) & Q(pk=payment_method_id)).first()
         if payment_method is None:
             raise ValidationError("no payment method found for user")
         participation_service.createParticipation(invitation.recipient, invitation, invitation.safe,
@@ -53,11 +54,14 @@ class PaymentMethodService(object):
     def __init__(self):
         pass
 
+    def getPaymentMethodsWithQ(self, query):
+        return PaymentMethod.objects.filter(query)
+
     def getAllPaymentMethodsForUser(self, user):
-        return PaymentMethod.objects.filter(Q(user=user)).all()
+        return self.getPaymentMethodsWithQ(Q(user=user)).all()
 
     def getDefaultPaymentMethodForUser(self, user):
-        return PaymentMethod.objects.filter(Q(user=user) & Q(is_default=True)).first()
+        return self.getPaymentMethodsWithQ(Q(user=user) & Q(is_default=True)).first()
 
     def createPaymentMethodForUser(self, user, is_default):
         all = self.getAllPaymentMethodsForUser(user)

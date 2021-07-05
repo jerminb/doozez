@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils.translation import ugettext_lazy as _
+from jsonfield import JSONField
 
 from .managers import DoozezUserManager
 
@@ -15,6 +16,7 @@ class ActionPayload(models.Model):
     class Meta:
         managed = False
     action = models.CharField(max_length=60, choices=Action.choices)
+    json_data = JSONField(null=True)
 
 
 class DoozezUser(AbstractUser):
@@ -88,6 +90,7 @@ class ParticipationStatus(models.TextChoices):
     Active = 'ACT', _('Active')
     Complete = 'CPT', _('Complete')
     PendingPayment = 'PPT', _('PendingPayment')
+    Left = 'LEF', _('Left')
 
 
 class Participation(models.Model):
