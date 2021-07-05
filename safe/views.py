@@ -121,9 +121,12 @@ class InvitationViewSet(viewsets.ModelViewSet):
             options = {Action.ACCEPT: self.accept_invitation,
                        Action.DECLINE: self.decline_invitation,
                        }
-            invitation = options[serializer.validated_data['action']](serializer.validated_data['json_data'])
-            return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data,
-                            status=status.HTTP_200_OK)
+            try:
+                invitation = options[serializer.validated_data['action']](serializer.validated_data['json_data'])
+                return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data,
+                                status=status.HTTP_200_OK)
+            except TypeError as exp:
+                return Response(repr(exp), status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

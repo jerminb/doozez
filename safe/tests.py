@@ -142,7 +142,7 @@ class UsersManagersTests(TestCase):
         response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
                                data=json.dumps(data),
                                content_type='application/json')
-        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_decline_invitation(self):
         User = get_user_model()
