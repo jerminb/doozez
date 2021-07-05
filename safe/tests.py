@@ -121,7 +121,7 @@ class UsersManagersTests(TestCase):
             'json_data': '{"payment_method_id":' + str(bob_payment_method.pk) + '}'
         }
         client = APIClient()
-        client.login(username='alice@user.com', password='foo')
+        client.login(username='bob@user.com', password='foo')
         response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
                                data=json.dumps(data),
                                content_type='application/json')
@@ -138,7 +138,7 @@ class UsersManagersTests(TestCase):
             'action': 'ACCEPT'
         }
         client = APIClient()
-        client.login(username='alice@user.com', password='foo')
+        client.login(username='bob@user.com', password='foo')
         response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
                                data=json.dumps(data),
                                content_type='application/json')

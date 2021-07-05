@@ -16,9 +16,11 @@ class InvitationService(object):
         invitation.save()
         return invitation
 
-    def acceptInvitation(self, invitation, payment_method_id):
+    def acceptInvitation(self, invitation, payment_method_id, current_user):
         if invitation.status != InvitationStatus.Pending and invitation.status != InvitationStatus.Accepted:
             raise ValidationError("only pending or accepted invitations can be accepted")
+        if invitation.recipient != current_user:
+            raise ValidationError("only recipient can accept invite")
         participation_service = ParticipationService()
         payment_method_service = PaymentMethodService()
         payment_method = payment_method_service.getPaymentMethodsWithQ(

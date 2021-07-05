@@ -34,7 +34,7 @@ class ServiceTest(TestCase):
         payment_method = PaymentMethod.objects.create(user=bob, is_default=True)
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
-        invitation = service.acceptInvitation(invitation, payment_method.pk)
+        invitation = service.acceptInvitation(invitation, payment_method.pk, bob)
         participation = Participation.objects.first()
         self.assertEqual(invitation.status, InvitationStatus.Accepted)
         self.assertEqual(participation.user.pk, 2)
@@ -47,7 +47,17 @@ class ServiceTest(TestCase):
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
         with self.assertRaises(ValidationError):
-            service.acceptInvitation(invitation, 1)
+            service.acceptInvitation(invitation, 1, bob)
+
+    def test_accept_invite_others_invite(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        PaymentMethod.objects.create(user=bob, is_default=True)
+        service = InvitationService()
+        invitation = service.createInvitation(alice, bob, safe)
+        with self.assertRaises(ValidationError):
+            service.acceptInvitation(invitation, 1, alice)
 
     def test_participant_after_create_safe(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')

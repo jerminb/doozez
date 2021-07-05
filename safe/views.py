@@ -109,7 +109,7 @@ class InvitationViewSet(viewsets.ModelViewSet):
         payment_method_id = self.get_payment_method_id_from_json(json_data)
         if payment_method_id is None:
             raise ValueError("payment_method_id is null")
-        return self.invitation_service.acceptInvitation(invitation, payment_method_id)
+        return self.invitation_service.acceptInvitation(invitation, payment_method_id, self.request.user)
 
     def decline_invitation(self, json_data):
         invitation = self.get_object()
