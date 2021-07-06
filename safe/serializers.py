@@ -48,7 +48,7 @@ class ActionPayloadSerializer(serializers.ModelSerializer):
         fields = ['action', 'json_data']
 
 
-class ParticipationSerializer(serializers.ModelSerializer):
+class ParticipationListSerializer(serializers.ModelSerializer):
     user_role = serializers.CharField(source='get_user_role_display')
     status = serializers.CharField(source='get_status_display')
     user = UserSerializer()
@@ -56,10 +56,22 @@ class ParticipationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Participation
-        fields = '__all__'
+        fields = ['id', 'user_role', 'status', 'user', 'safe', 'win_sequence']
 
 
 class PaymentMethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentMethod
         fields = ['id', 'is_default']
+
+
+class ParticipationRetrieveSerializer(serializers.ModelSerializer):
+    user_role = serializers.CharField(source='get_user_role_display')
+    status = serializers.CharField(source='get_status_display')
+    user = UserSerializer()
+    safe = SafeSerializer()
+    payment_method = PaymentMethodSerializer()
+
+    class Meta:
+        model = Participation
+        fields = ['id', 'user_role', 'status', 'user', 'safe', 'payment_method', 'win_sequence']

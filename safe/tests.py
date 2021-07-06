@@ -180,6 +180,30 @@ class UsersManagersTests(TestCase):
         response = client.get(reverse('participation-detail', args=[1]),
                               content_type='application/json')
         self.assertEqual(response.data['user']['email'], "alice@user.com")
+        self.assertEqual(response.data['payment_method']['is_default'], True)
+        response = client.get(reverse('participation-list')+"?safe=1",
+                              content_type='application/json')
+        self.assertEqual(response.data[0]['user']['email'], "alice@user.com")
+
+    def test_retrieve_payment_method_for_other_user(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        User.objects.create_user(email='bob@user.com', password='foo')
+        PaymentMethod.objects.create(user=alice, is_default=True)
+        data = {
+            'name': 'foosafe',
+            'monthly_payment': '2'
+        }
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.post(reverse('safe-list'),
+                               data=json.dumps(data),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        client.login(username='bob@user.com', password='foo')
+        response = client.get(reverse('participation-detail', args=[1]),
+                              content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_post_participants(self):
         User = get_user_model()

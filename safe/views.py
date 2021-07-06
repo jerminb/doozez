@@ -4,10 +4,12 @@ from django.contrib.auth.models import Group
 from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework import permissions, status
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
-    InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationSerializer, PaymentMethodSerializer
+    InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer,\
+    ParticipationRetrieveSerializer, PaymentMethodSerializer
 from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod
 from .services import InvitationService, SafeService, PaymentMethodService
 
@@ -137,8 +139,24 @@ class ParticipationViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ReadOnly ViewSet for Participation
     """
+
+    def list(self, request):
+        safe = self.request.query_params.get('safe')
+        result = self.get_queryset()
+        if safe is not None:
+            result = result.filter(safe__id=safe)
+        serializer = ParticipationListSerializer(result, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        user = self.request.user
+        queryset = self.get_queryset().filter(user=user)
+        participation = get_object_or_404(queryset, pk=pk)
+        serializer = ParticipationRetrieveSerializer(participation)
+        return Response(serializer.data)
+
     queryset = Participation.objects.all()
-    serializer_class = ParticipationSerializer
+    serializer_class = ParticipationListSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 
@@ -164,7 +182,7 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
         service = PaymentMethodService()
         if serializer.is_valid():
             payment_method = service.createPaymentMethodForUser(user,
-                                                serializer.validated_data['is_default'])
+                                                                serializer.validated_data['is_default'])
             return Response(data=self.get_serializer_class()(payment_method, context={'request': request}).data,
                             status=status.HTTP_201_CREATED)
         else:
