@@ -1,0 +1,2 @@
+pip install django-allauth
+pip install django-rest-auth

@@ -1,5 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth.models import Group
+from rest_auth.registration.serializers import RegisterSerializer
+
+from allauth.account.adapter import get_adapter
+from allauth.account.utils import setup_user_email
 
 from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation, PaymentMethod
 from .fields import NullableJSONField
@@ -15,6 +19,20 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ['name']
+
+
+class DoozezRegisterSerializer(RegisterSerializer):
+    first_name = serializers.CharField(allow_blank=True)
+    last_name = serializers.CharField(allow_blank=True)
+
+    def get_cleaned_data(self):
+        return {
+            'username': self.validated_data.get('username', ''),
+            'password1': self.validated_data.get('password1', ''),
+            'email': self.validated_data.get('email', ''),
+            'first_name': self.validated_data.get('first_name', ''),
+            'last_name': self.validated_data.get('last_name', '')
+        }
 
 
 class SafeSerializer(serializers.ModelSerializer):
