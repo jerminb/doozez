@@ -1,4 +1,4 @@
-from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, ParticipantRole
+from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, ParticipantRole
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -65,11 +65,14 @@ class PaymentMethodService(object):
     def getDefaultPaymentMethodForUser(self, user):
         return self.getPaymentMethodsWithQ(Q(user=user) & Q(is_default=True)).first()
 
+    def createPaymentMethod(self, user, is_default):
+        return PaymentMethod.objects.create(user=user, is_default=is_default)
+
     def createPaymentMethodForUser(self, user, is_default):
         all = self.getAllPaymentMethodsForUser(user)
         if len(all) == 0:
             # first payment method is always default
-            return PaymentMethod.objects.create(user=user, is_default=True)
+            return self.createPaymentMethod(user=user, is_default=True)
         else:
             temp_is_default = is_default
             default = all.filter(is_default=True).first()
@@ -78,7 +81,23 @@ class PaymentMethodService(object):
             else:
                 default.is_default = False
                 default.save()
-            return PaymentMethod.objects.create(user=user, is_default=temp_is_default)
+            return self.createPaymentMethod(user=user, is_default=temp_is_default)
+
+    def approveWithExternalSuccess(self, pk):
+        payment_method = self.getPaymentMethodsWithQ(Q(pk=pk)).first()
+        if payment_method.status != PaymentMethodStatus.PendingExternalApproval:
+            raise ValidationError("only pending payment-methods can be approved")
+        payment_method.status = PaymentMethodStatus.ExternalApprovalSuccessful
+        payment_method.save()
+        return payment_method
+
+    def failWithExternalFailed(self, pk):
+        payment_method = self.getPaymentMethodsWithQ(Q(pk=pk)).first()
+        if payment_method.status != PaymentMethodStatus.PendingExternalApproval:
+            raise ValidationError("only pending payment-methods can move to failed")
+        payment_method.status = PaymentMethodStatus.ExternalApprovalFailed
+        payment_method.save()
+        return payment_method
 
 class SafeService(object):
     participation_service = ParticipationService()

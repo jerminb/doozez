@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
 
-from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole
+from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus
 from .services import InvitationService, SafeService, PaymentMethodService
 
 
@@ -83,3 +83,11 @@ class ServiceTest(TestCase):
         self.assertEqual(pm2.is_default, True)
         payment_methods = PaymentMethodService().getAllPaymentMethodsForUser(user=alice)
         self.assertEqual(payment_methods[0].is_default, False)
+        self.assertEqual(payment_methods[0].status, PaymentMethodStatus.PendingExternalApproval)
+
+    def test_approve_payment_method(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        PaymentMethodService().createPaymentMethodForUser(user=alice, is_default=False)
+        PaymentMethodService().approveWithExternalSuccess(pk=1)
+        payment_methods = PaymentMethodService().getAllPaymentMethodsForUser(user=alice)
+        self.assertEqual(payment_methods[0].status, PaymentMethodStatus.ExternalApprovalSuccessful)

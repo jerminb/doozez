@@ -32,7 +32,18 @@ class DoozezUser(AbstractUser):
         return self.email
 
 
+class PaymentMethodStatus(models.TextChoices):
+    PendingExternalApproval = 'PEA', _('PendingExternalApproval')
+    ExternalApprovalSuccessful = 'EAS', _('ExternalApprovalSuccessful')
+    ExternalApprovalFailed = 'EAF', _('ExternalApprovalFailed')
+
+
 class PaymentMethod(models.Model):
+    status = models.CharField(
+        max_length=3,
+        choices=PaymentMethodStatus.choices,
+        default=PaymentMethodStatus.PendingExternalApproval,
+    )
     user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
     is_default = models.BooleanField(default=False)
 
@@ -109,3 +120,9 @@ class Participation(models.Model):
     safe = models.ForeignKey(Safe, on_delete=models.CASCADE, related_name='safe')
     payment_method = models.ForeignKey(PaymentMethod, on_delete=models.PROTECT, related_name='payment_method')
     win_sequence = models.PositiveIntegerField(null=True)
+
+
+class GCFlow(models.Model):
+    flow_id = models.TextField()
+    session_token = models.TextField()
+    payment_method = models.ForeignKey(PaymentMethod, on_delete=models.CASCADE, related_name='%(class)s_payment_method')

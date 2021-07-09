@@ -1,2 +1,3 @@
 pip install django-allauth
 pip install django-rest-auth
+pip install gocardless_pro
