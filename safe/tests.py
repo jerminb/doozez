@@ -165,10 +165,11 @@ class UsersManagersTests(TestCase):
     def test_post_safe_for_user(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
-        PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
         data = {
             'name': 'foosafe',
-            'monthly_payment': '2'
+            'monthly_payment': '2',
+            'payment_method_id': payment_method.pk
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
@@ -189,10 +190,11 @@ class UsersManagersTests(TestCase):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         User.objects.create_user(email='bob@user.com', password='foo')
-        PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
         data = {
             'name': 'foosafe',
-            'monthly_payment': '2'
+            'monthly_payment': '2',
+            'payment_method_id': payment_method.pk
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
@@ -228,7 +230,7 @@ class UsersManagersTests(TestCase):
 
     def test_post_payment_methods(self):
         User = get_user_model()
-        User.objects.create_user(email='alice@user.com', password='foo')
+        User.objects.create_user(email='alice@user.com', first_name='alice', last_name='bob', password='foo')
         data = {
             'is_default': False
         }

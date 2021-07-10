@@ -1,7 +1,11 @@
+import os
+from collections import namedtuple
+
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
+from unittest import mock
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus
 from .services import InvitationService, SafeService, PaymentMethodService
@@ -61,9 +65,9 @@ class ServiceTest(TestCase):
 
     def test_participant_after_create_safe(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
-        PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
         service = SafeService()
-        service.createSafe(alice, 'foosafe', 1)
+        service.createSafe(alice, 'foosafe', 1, payment_method.pk)
         participation = Participation.objects.first()
         self.assertEqual(participation.user.pk, 1)
         self.assertEqual(participation.user_role, ParticipantRole.Initiator)
@@ -72,22 +76,45 @@ class ServiceTest(TestCase):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         PaymentMethod.objects.create(user=alice, is_default=True)
         PaymentMethod.objects.create(user=alice, is_default=False)
-        payment_methods = PaymentMethodService().getAllPaymentMethodsForUser(user=alice)
+        payment_methods = PaymentMethodService("", "").getAllPaymentMethodsForUser(user=alice)
         self.assertEqual(len(payment_methods), 2)
 
-    def test_create_payments_for_user(self):
+    @mock.patch('gocardless_pro.Client.redirect_flows')
+    def test_create_payments_for_user(self, mock_gc):
+        expected_dict = {
+            "id": "foo",
+            "redirect_url": "bar"
+        }
+        mock_gc.create.return_value = namedtuple("RedirectFlow", expected_dict.keys())(*expected_dict.values())
+        payment_method_service = PaymentMethodService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
-        pm1 = PaymentMethodService().createPaymentMethodForUser(user=alice, is_default=False)
+        pm1 = payment_method_service.createPaymentMethodForUser(user=alice, is_default=False,
+                                                                pgw_description="desc", pgw_session_token="token",
+                                                                pgw_success_redirect_url="url")
         self.assertEqual(pm1.is_default, True)
-        pm2 = PaymentMethodService().createPaymentMethodForUser(user=alice, is_default=True)
+        self.assertEqual(pm1.gcflow.flow_id, 'foo')
+        self.assertEqual(pm1.gcflow.flow_redirect_url, 'bar')
+        pm2 = payment_method_service.createPaymentMethodForUser(user=alice, is_default=True,
+                                                                pgw_description="desc", pgw_session_token="token",
+                                                                pgw_success_redirect_url="url")
         self.assertEqual(pm2.is_default, True)
-        payment_methods = PaymentMethodService().getAllPaymentMethodsForUser(user=alice)
+        self.assertEqual(pm1.gcflow.flow_id, 'foo')
+        payment_methods = payment_method_service.getAllPaymentMethodsForUser(user=alice)
         self.assertEqual(payment_methods[0].is_default, False)
         self.assertEqual(payment_methods[0].status, PaymentMethodStatus.PendingExternalApproval)
 
-    def test_approve_payment_method(self):
+    @mock.patch('gocardless_pro.Client.redirect_flows')
+    def test_approve_payment_method(self, mock_gc):
+        expected_dict = {
+            "id": "foo",
+            "redirect_url": "bar"
+        }
+        mock_gc.create.return_value = namedtuple("RedirectFlow", expected_dict.keys())(*expected_dict.values())
+        payment_method_service = PaymentMethodService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
-        PaymentMethodService().createPaymentMethodForUser(user=alice, is_default=False)
-        PaymentMethodService().approveWithExternalSuccess(pk=1)
-        payment_methods = PaymentMethodService().getAllPaymentMethodsForUser(user=alice)
+        payment_method_service.createPaymentMethodForUser(user=alice, is_default=False,
+                                                          pgw_description="desc", pgw_session_token="token",
+                                                          pgw_success_redirect_url="url")
+        payment_method_service.approveWithExternalSuccess(pk=1)
+        payment_methods = payment_method_service.getAllPaymentMethodsForUser(user=alice)
         self.assertEqual(payment_methods[0].status, PaymentMethodStatus.ExternalApprovalSuccessful)

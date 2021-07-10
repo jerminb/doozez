@@ -124,5 +124,6 @@ class Participation(models.Model):
 
 class GCFlow(models.Model):
     flow_id = models.TextField()
+    flow_redirect_url = models.TextField(null=True)
     session_token = models.TextField()
-    payment_method = models.ForeignKey(PaymentMethod, on_delete=models.CASCADE, related_name='%(class)s_payment_method')
+    payment_method = models.OneToOneField(PaymentMethod, on_delete=models.CASCADE)

@@ -1,4 +1,6 @@
 import json
+import os
+import uuid
 
 from django.contrib.auth.models import Group
 from django.db.models import Q
@@ -8,8 +10,8 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
-    InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer,\
-    ParticipationRetrieveSerializer, PaymentMethodSerializer
+    InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer, \
+    ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer
 from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod
 from .services import InvitationService, SafeService, PaymentMethodService
 
@@ -52,7 +54,8 @@ class SafeViewSet(viewsets.ModelViewSet):
         service = SafeService()
         if serializer.is_valid():
             safe = service.createSafe(user, serializer.validated_data['name'],
-                                      serializer.validated_data['monthly_payment'])
+                                      serializer.validated_data['monthly_payment'],
+                                      serializer.validated_data['payment_method_id'])
             return Response(data=SafeSerializer(safe, context={'request': request}).data,
                             status=status.HTTP_201_CREATED)
         else:
@@ -161,8 +164,14 @@ class ParticipationViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class PaymentMethodViewSet(viewsets.ModelViewSet):
-    serializer_class = PaymentMethodSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request and (self.request.method == 'POST' or self.request.method == 'PUT'
+                             or self.request.method == 'PATCH'):
+            return PaymentMethodSerializer
+        else:
+            return PaymentMethodReadSerializer
 
     def get_queryset(self):
         """
@@ -179,11 +188,14 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         serializer = self.get_serializer_class()(data=request.data)
-        service = PaymentMethodService()
+        service = PaymentMethodService(os.environ['GC_ACCESS_TOKEN'], os.environ['GC_ENVIRONMET'])
         if serializer.is_valid():
             payment_method = service.createPaymentMethodForUser(user,
-                                                                serializer.validated_data['is_default'])
-            return Response(data=self.get_serializer_class()(payment_method, context={'request': request}).data,
+                                                                serializer.validated_data['is_default'],
+                                                                "Doozez",
+                                                                str(uuid.uuid4()),
+                                                                "https://developer.gocardless.com/example-redirect-uri/")
+            return Response(data=PaymentMethodReadSerializer(payment_method, context={'request': request}).data,
                             status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

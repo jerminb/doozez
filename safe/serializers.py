@@ -36,9 +36,11 @@ class DoozezRegisterSerializer(RegisterSerializer):
 
 
 class SafeSerializer(serializers.ModelSerializer):
+    payment_method_id = serializers.IntegerField(required=False, allow_null=True)
+
     class Meta:
         model = Safe
-        fields = ['id', 'status', 'name', 'monthly_payment', 'id', 'initiator']
+        fields = ['id', 'status', 'name', 'monthly_payment', 'id', 'initiator', 'payment_method_id']
 
 
 class InvitationReadSerializer(serializers.ModelSerializer):
@@ -66,6 +68,19 @@ class ActionPayloadSerializer(serializers.ModelSerializer):
         fields = ['action', 'json_data']
 
 
+class PaymentMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentMethod
+        fields = ['id', 'is_default']
+
+
+class PaymentMethodReadSerializer(serializers.ModelSerializer):
+    redirect_url = serializers.CharField(source='gcflow.flow_redirect_url')
+    class Meta:
+        model = PaymentMethod
+        fields = ['id', 'is_default', 'redirect_url']
+
+
 class ParticipationListSerializer(serializers.ModelSerializer):
     user_role = serializers.CharField(source='get_user_role_display')
     status = serializers.CharField(source='get_status_display')
@@ -75,12 +90,6 @@ class ParticipationListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Participation
         fields = ['id', 'user_role', 'status', 'user', 'safe', 'win_sequence']
-
-
-class PaymentMethodSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PaymentMethod
-        fields = ['id', 'is_default']
 
 
 class ParticipationRetrieveSerializer(serializers.ModelSerializer):

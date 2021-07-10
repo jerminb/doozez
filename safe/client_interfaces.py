@@ -1,6 +1,15 @@
 import gocardless_pro
 
 
+class RedirectFlow(object):
+    redirect_id = ""
+    redirect_url = ""
+
+    def __init__(self, redirect_id, redirect_url):
+        self.redirect_id = redirect_id
+        self.redirect_url = redirect_url
+
+
 class PaymentGatewayClient(object):
     client = None
     access_token = ""
@@ -39,7 +48,7 @@ class PaymentGatewayClient(object):
                 }
             }
         )
-        return redirect_flow.id
+        return RedirectFlow(redirect_flow.id, redirect_flow.redirect_url)
 
     def complete_approval_flow(self, flow_id, session_token):
         redirect_flow = self.get_client().redirect_flows.complete(

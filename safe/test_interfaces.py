@@ -15,16 +15,19 @@ class InterfaceTest(TestCase):
         gate_way = PaymentGatewayClient(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
         self.assertIsNotNone(gate_way.get_client())
 
-    @mock.patch('gocardless_pro.Client')
+    @mock.patch('gocardless_pro.Client.redirect_flows')
     def test_create_flow(self, mock_gc):
-        mock_gc.redirect_flows.create.return_value = {
-            "id": "foo"
+        expected_dict = {
+            "id": "foo",
+            "redirect_url": "bar"
         }
-        dict = {
+        mock_gc.create.return_value = namedtuple("RedirectFlow", expected_dict.keys())(*expected_dict.values())
+        user_dict = {
             "first_name": "alice",
             "last_name": "bob",
             "email": "alice@test.com"
         }
-        user = namedtuple("User", dict.keys())(*dict.values())
+        user = namedtuple("User", user_dict.keys())(*user_dict.values())
         gate_way = PaymentGatewayClient(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
-        self.assertIsNotNone(gate_way.create_approval_flow("desc", "token", "url", user))
+        result = gate_way.create_approval_flow("desc", "token", "url", user)
+        self.assertEqual(result.redirect_id, "foo")

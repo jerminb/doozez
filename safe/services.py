@@ -1,4 +1,6 @@
-from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, ParticipantRole
+from .client_interfaces import PaymentGatewayClient
+from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, \
+    ParticipantRole, GCFlow
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -53,8 +55,12 @@ class ParticipationService(object):
 
 
 class PaymentMethodService(object):
-    def __init__(self):
-        pass
+
+    def __init__(self, access_token=None, environment=None):
+        if access_token is None or environment is None:
+            self.payment_gate_way_client = None
+        else:
+            self.payment_gate_way_client = PaymentGatewayClient(access_token, environment)
 
     def getPaymentMethodsWithQ(self, query):
         return PaymentMethod.objects.filter(query)
@@ -65,14 +71,27 @@ class PaymentMethodService(object):
     def getDefaultPaymentMethodForUser(self, user):
         return self.getPaymentMethodsWithQ(Q(user=user) & Q(is_default=True)).first()
 
-    def createPaymentMethod(self, user, is_default):
-        return PaymentMethod.objects.create(user=user, is_default=is_default)
+    def createPaymentMethod(self, user, is_default, pgw_description, pgw_session_token, pgw_success_redirect_url):
+        if self.payment_gate_way_client is None:
+            raise AttributeError("payment gateway client is not initialized")
+        redirect_flow = self.payment_gate_way_client.create_approval_flow(pgw_description, pgw_session_token,
+                                                                          pgw_success_redirect_url, user)
+        payment_method = PaymentMethod.objects.create(user=user, is_default=is_default)
+        GCFlow.objects.create(flow_id=redirect_flow.redirect_id,
+                              flow_redirect_url=redirect_flow.redirect_url,
+                              session_token=pgw_session_token,
+                              payment_method=payment_method)
+        return payment_method
 
-    def createPaymentMethodForUser(self, user, is_default):
+    def createPaymentMethodForUser(self, user, is_default, pgw_description, pgw_session_token,
+                                   pgw_success_redirect_url):
         all = self.getAllPaymentMethodsForUser(user)
         if len(all) == 0:
             # first payment method is always default
-            return self.createPaymentMethod(user=user, is_default=True)
+            return self.createPaymentMethod(user=user, is_default=True,
+                                            pgw_description=pgw_description,
+                                            pgw_session_token=pgw_session_token,
+                                            pgw_success_redirect_url=pgw_success_redirect_url)
         else:
             temp_is_default = is_default
             default = all.filter(is_default=True).first()
@@ -81,7 +100,10 @@ class PaymentMethodService(object):
             else:
                 default.is_default = False
                 default.save()
-            return self.createPaymentMethod(user=user, is_default=temp_is_default)
+            return self.createPaymentMethod(user=user, is_default=temp_is_default,
+                                            pgw_description=pgw_description,
+                                            pgw_session_token=pgw_session_token,
+                                            pgw_success_redirect_url=pgw_success_redirect_url)
 
     def approveWithExternalSuccess(self, pk):
         payment_method = self.getPaymentMethodsWithQ(Q(pk=pk)).first()
@@ -99,6 +121,7 @@ class PaymentMethodService(object):
         payment_method.save()
         return payment_method
 
+
 class SafeService(object):
     participation_service = ParticipationService()
     payment_method_service = PaymentMethodService()
@@ -106,11 +129,13 @@ class SafeService(object):
     def __init__(self):
         pass
 
-    def createSafe(self, current_user, name, monthly_payment):
-        payment_method = self.payment_method_service.getDefaultPaymentMethodForUser(current_user)
+    def createSafe(self, current_user, name, monthly_payment, payment_method_id):
+        payment_method = self.payment_method_service.getAllPaymentMethodsForUser(current_user) \
+            .filter(pk=payment_method_id).first()
         if payment_method is None:
             raise ValidationError("no payment method found for user")
-        safe = Safe(name=name, monthly_payment=monthly_payment, total_participants=1, initiator=current_user)
+        safe = Safe(name=name, monthly_payment=monthly_payment, total_participants=1,
+                    initiator=current_user)
         safe.save()
         self.participation_service.createParticipation(user=current_user, safe=safe,
                                                        payment_method=payment_method,
