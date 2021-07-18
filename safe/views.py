@@ -27,7 +27,7 @@ class ConfirmatioView(TemplateView):
         if flow_id is None:
             return HttpResponse('Error no redirect flow id found!')
         else:
-            service.approveWithExternalSuccess()
+            service.approveWithExternalSuccessWithFlowId(flow_id)
         return super().get(request, *args, **kwargs)
 
 class UserViewSet(viewsets.ModelViewSet):
