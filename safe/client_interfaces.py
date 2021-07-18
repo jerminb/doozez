@@ -79,7 +79,7 @@ class PaymentGatewayClient(object):
             params={
                 "session_token": session_token
             })
-        return ConfirmationRedirectFlow(redirect_flow.links.mandate, redirect_flow.links.customer, redirect_flow.confirmation_urls)
+        return ConfirmationRedirectFlow(redirect_flow.links.mandate, redirect_flow.links.customer, redirect_flow.confirmation_url)
 
     def get_mandate(self, mandate_id):
         if mandate_id is None or mandate_id == "":
