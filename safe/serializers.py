@@ -78,7 +78,7 @@ class PaymentMethodReadSerializer(serializers.ModelSerializer):
     redirect_url = serializers.CharField(source='gcflow.flow_redirect_url')
     class Meta:
         model = PaymentMethod
-        fields = ['id', 'is_default', 'redirect_url']
+        fields = ['id', 'is_default', 'redirect_url', 'status']
 
 
 class ParticipationListSerializer(serializers.ModelSerializer):
