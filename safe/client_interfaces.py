@@ -1,4 +1,27 @@
+from django.core.exceptions import ValidationError
 import gocardless_pro
+
+
+class GCMandate(object):
+    id = ""
+    scheme = ""
+    status = ""
+
+    def __init__(self, id, scheme, status):
+        self.id = id
+        self.scheme = scheme
+        self.status = status
+
+
+class ConfirmationRedirectFlow(object):
+    mandate_id = ""
+    customer_id = ""
+    confirmation_url = ""
+
+    def __init__(self, mandate_id, customer_id, confirmation_url):
+        self.mandate_id = mandate_id
+        self.customer_id = customer_id
+        self.confirmation_url = confirmation_url
 
 
 class RedirectFlow(object):
@@ -56,4 +79,13 @@ class PaymentGatewayClient(object):
             params={
                 "session_token": session_token
             })
-        return redirect_flow.confirmation_url
+        return ConfirmationRedirectFlow(redirect_flow.links.mandate, redirect_flow.links.customer, redirect_flow.confirmation_urls)
+
+    def get_mandate(self, mandate_id):
+        if mandate_id is None or mandate_id == "":
+            raise ValidationError("mandate id can not be empty")
+        mandate = self.get_client().mandates.get(mandate_id)
+        if mandate is None:
+            return None
+        return GCMandate(mandate_id, mandate.scheme, mandate.status)
+

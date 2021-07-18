@@ -18,6 +18,7 @@ from django.conf.urls import url
 from django.urls import path, include
 
 from allauth.account.views import confirm_email
+from safe.views import ConfirmatioView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,5 +26,6 @@ urlpatterns = [
     url(r'^auth/', include('rest_auth.urls')),
     url(r'^auth/registration/', include('rest_auth.registration.urls')),
     url(r'^account/', include('allauth.urls')),
-    url(r'^accounts/registration/account-confirm-email/(?P<key>.+)/$', confirm_email, name='account_confirm_email')
+    url(r'^accounts/registration/account-confirm-email/(?P<key>.+)/$', confirm_email, name='account_confirm_email'),
+    url('confirmation', ConfirmatioView.as_view(), name='confirmation')
 ]

@@ -3,6 +3,8 @@ import os
 import uuid
 
 from django.contrib.auth.models import Group
+from django.http import HttpResponse
+from django.views.generic import TemplateView
 from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework import permissions, status
@@ -15,6 +17,18 @@ from .serializers import UserSerializer, GroupSerializer, SafeSerializer, Invita
 from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod
 from .services import InvitationService, SafeService, PaymentMethodService
 
+
+class ConfirmatioView(TemplateView):
+    template_name = "confirmation.html"
+
+    def get(self, request, *args, **kwargs):
+        service = PaymentMethodService(os.environ['GC_ACCESS_TOKEN'], os.environ['GC_ENVIRONMET'])
+        flow_id = request.GET.get('redirect_flow_id')
+        if flow_id is None:
+            return HttpResponse('Error no redirect flow id found!')
+        else:
+            service.approveWithExternalSuccess()
+        return super().get(request, *args, **kwargs)
 
 class UserViewSet(viewsets.ModelViewSet):
     """

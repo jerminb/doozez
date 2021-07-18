@@ -6,9 +6,11 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
 from unittest import mock
+from .decorators import clear, doozez_task
 
-from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus
-from .services import InvitationService, SafeService, PaymentMethodService
+from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
+    MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType
+from .services import InvitationService, SafeService, PaymentMethodService, TaskService
 
 
 class ServiceTest(TestCase):
@@ -103,18 +105,51 @@ class ServiceTest(TestCase):
         self.assertEqual(payment_methods[0].is_default, False)
         self.assertEqual(payment_methods[0].status, PaymentMethodStatus.PendingExternalApproval)
 
+    @mock.patch('safe.client_interfaces.gocardless_pro.Client.mandates')
     @mock.patch('gocardless_pro.Client.redirect_flows')
-    def test_approve_payment_method(self, mock_gc):
+    def test_approve_payment_method(self, mock_gc, mock_gc_services):
         expected_dict = {
             "id": "foo",
             "redirect_url": "bar"
         }
         mock_gc.create.return_value = namedtuple("RedirectFlow", expected_dict.keys())(*expected_dict.values())
+        expected_link_dict = {
+            "mandate": "foo_mandate",
+            "customer": "foo_customer"
+        }
+        expected_link = namedtuple("ConfirmationLink", expected_link_dict.keys())(
+            *expected_link_dict.values())
+        expected_complete_dict = {
+            "links": expected_link,
+            "confirmation_urls": "bar"
+        }
+        mock_gc.complete.return_value = namedtuple("ConfirmationRedirectFlow", expected_complete_dict.keys())(
+            *expected_complete_dict.values())
+        expected_mandate_dict = {
+            "id": "foo_mandate",
+            "scheme": "bacs",
+            "status": "pending_submission"
+        }
+        mock_gc_services.get.return_value = namedtuple("GCMandate", expected_mandate_dict.keys())(
+            *expected_mandate_dict.values())
         payment_method_service = PaymentMethodService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         payment_method_service.createPaymentMethodForUser(user=alice, is_default=False,
                                                           pgw_description="desc", pgw_session_token="token",
                                                           pgw_success_redirect_url="url")
-        payment_method_service.approveWithExternalSuccess(pk=1)
+        payment_method_service.approveWithExternalSuccessWithFlowId(flow_id="foo")
         payment_methods = payment_method_service.getAllPaymentMethodsForUser(user=alice)
         self.assertEqual(payment_methods[0].status, PaymentMethodStatus.ExternalApprovalSuccessful)
+        self.assertEqual(payment_methods[0].mandate.status, MandateStatus.PendingSubmission)
+
+    def test_task_service_run(self):
+        clear()
+
+        @doozez_task(type=DoozezTaskType.Draw)
+        def test_draw(safe_id):
+            return safe_id
+
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,parameters='{"safe_id":1}')
+        service = TaskService()
+        result = service.runNextRunnableTask()
+        self.assertEqual(result, 1)

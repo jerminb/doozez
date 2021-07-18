@@ -1,6 +1,11 @@
+import json
+
+from django.db import transaction
+
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, \
-    ParticipantRole, GCFlow
+    ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus
+from .decorators import run
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -47,6 +52,12 @@ class ParticipationService(object):
     def __init__(self):
         pass
 
+    def getParticipationWithQ(self, query):
+        return Participation.objects.filter(query)
+
+    def getParticipationForSafe(self, safe_id):
+        return self.getParticipationWithQ(Q(safe__id=safe_id)).all()
+
     def createParticipation(self, user, invitation, safe, payment_method, role):
         participation = Participation(user=user, invitation=invitation, safe=safe,
                                       payment_method=payment_method, user_role=role)
@@ -54,7 +65,23 @@ class ParticipationService(object):
         return participation
 
 
+class MandateService(object):
+    def __init__(self):
+        pass
+
+    def createMandate(self, status, scheme, mandate_external_id):
+        return Mandate.objects.create(status=status, scheme=scheme, mandate_external_id=mandate_external_id)
+
+    def submitMandate(self, pk):
+        mandate = Mandate.objects.get(pk=pk)
+        if mandate is None:
+            raise ValidationError("failed to find Mandate for pk {}".format(pk))
+        mandate.submit()
+        return mandate
+
+
 class PaymentMethodService(object):
+    mandate_service = MandateService()
 
     def __init__(self, access_token=None, environment=None):
         if access_token is None or environment is None:
@@ -105,20 +132,23 @@ class PaymentMethodService(object):
                                             pgw_session_token=pgw_session_token,
                                             pgw_success_redirect_url=pgw_success_redirect_url)
 
-    def approveWithExternalSuccess(self, pk):
-        payment_method = self.getPaymentMethodsWithQ(Q(pk=pk)).first()
-        if payment_method.status != PaymentMethodStatus.PendingExternalApproval:
-            raise ValidationError("only pending payment-methods can be approved")
-        payment_method.status = PaymentMethodStatus.ExternalApprovalSuccessful
+    def approveWithExternalSuccessWithFlowId(self, flow_id):
+        gcflow = GCFlow.objects.get(flow_id=flow_id)
+        if gcflow is None:
+            raise ValidationError("no flow object found")
+        payment_method = gcflow.payment_method
+        payment_method.approveWithExternalSuccess()
+        confirmation_flow = self.payment_gate_way_client.complete_approval_flow(flow_id, gcflow.session_token)
+        gcmandate = self.payment_gate_way_client.get_mandate(confirmation_flow.mandate_id)
+        mandate = self.mandate_service.createMandate(status=gcmandate.status, scheme=gcmandate.scheme,
+                                                     mandate_external_id=gcmandate.id)
+        payment_method.mandate = mandate
         payment_method.save()
         return payment_method
 
     def failWithExternalFailed(self, pk):
         payment_method = self.getPaymentMethodsWithQ(Q(pk=pk)).first()
-        if payment_method.status != PaymentMethodStatus.PendingExternalApproval:
-            raise ValidationError("only pending payment-methods can move to failed")
-        payment_method.status = PaymentMethodStatus.ExternalApprovalFailed
-        payment_method.save()
+        payment_method.failApproveWithExternalFailed()
         return payment_method
 
 
@@ -142,3 +172,28 @@ class SafeService(object):
                                                        role=ParticipantRole.Initiator,
                                                        invitation=None)
         return safe
+
+
+class TaskService(object):
+
+    def __init__(self):
+        pass
+
+    def getTasksWithConcurrencyWithQ(self, query):
+        return DoozezTask.objects.select_for_update().filter(query)
+
+    def getPendingTasksOrderedbyCreationDate(self):
+        return self.getTasksWithConcurrencyWithQ(Q(status=DoozezTaskStatus.Pending)).order_by('-created_on')
+
+    def getNextRunableTask(self):
+        return self.getPendingTasksOrderedbyCreationDate().first()
+
+    def runNextRunnableTask(self):
+        task = None
+        with transaction.atomic():
+            task = self.getNextRunableTask()
+            if task is None:
+                return
+            task.status = DoozezTaskStatus.Running
+            task.save()
+        return run(task.task_type, **json.loads(task.parameters))

@@ -3,8 +3,17 @@ from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils.translation import ugettext_lazy as _
 from jsonfield import JSONField
+from django_fsm import FSMField, transition
 
 from .managers import DoozezUserManager
+
+
+class TimeStampedModel(models.Model):
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
 
 
 class Action(models.TextChoices):
@@ -32,6 +41,39 @@ class DoozezUser(AbstractUser):
         return self.email
 
 
+class MandateStatus(models.TextChoices):
+    PendingCustomerApproval = 'pending_customer_approval', _('pending_customer_approval')
+    PendingSubmission = 'pending_submission', _('pending_submission')
+    Submitted = 'submitted', _('submitted')
+    Active = 'active', _('active')
+    Failed = 'failed', _('failed')
+    Cancelled = 'cancelled', _('cancelled')
+    Expired = 'expired', _('expired')
+    Consumed = 'consumed', _('consumed')
+
+
+class Mandate(models.Model):
+    status = FSMField(
+        choices=MandateStatus.choices,
+        default=MandateStatus.PendingSubmission,
+        protected=True,
+    )
+    scheme = models.TextField()
+    mandate_external_id = models.TextField()
+
+    @transition(field=status, source=[MandateStatus.Submitted],
+                target=MandateStatus.Active)
+    def activate(self):
+        # signal PaymentMethod
+        pass
+
+    @transition(field=status, source=[MandateStatus.PendingSubmission],
+                target=MandateStatus.Submitted)
+    def submit(self):
+        # signal PaymentMethod
+        pass
+
+
 class PaymentMethodStatus(models.TextChoices):
     PendingExternalApproval = 'PEA', _('PendingExternalApproval')
     ExternalApprovalSuccessful = 'EAS', _('ExternalApprovalSuccessful')
@@ -39,13 +81,24 @@ class PaymentMethodStatus(models.TextChoices):
 
 
 class PaymentMethod(models.Model):
-    status = models.CharField(
-        max_length=3,
+    status = FSMField(
         choices=PaymentMethodStatus.choices,
         default=PaymentMethodStatus.PendingExternalApproval,
+        protected=True,
     )
     user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
     is_default = models.BooleanField(default=False)
+    mandate = models.ForeignKey(Mandate, on_delete=models.DO_NOTHING, null=True)
+
+    @transition(field=status, source=[PaymentMethodStatus.PendingExternalApproval],
+                target=PaymentMethodStatus.ExternalApprovalSuccessful)
+    def approveWithExternalSuccess(self):
+        pass
+
+    @transition(field=status, source=[PaymentMethodStatus.PendingExternalApproval],
+                target=PaymentMethodStatus.ExternalApprovalFailed)
+    def failApproveWithExternalFailed(self):
+        pass
 
 
 class SafeStatus(models.TextChoices):
@@ -127,3 +180,31 @@ class GCFlow(models.Model):
     flow_redirect_url = models.TextField(null=True)
     session_token = models.TextField()
     payment_method = models.OneToOneField(PaymentMethod, on_delete=models.CASCADE)
+
+
+class DoozezTaskStatus(models.TextChoices):
+    Pending = 'PND', _('Pending')
+    Running = 'ACT', _('Running')
+    Successful = 'SUC', _('Success')
+    Failed = 'FLD', _('Failed')
+
+
+class DoozezTaskType(models.TextChoices):
+    Draw = 'DRW', _('Draw')
+    WithdrawFirstPayment = 'WFP', _('WithdrawFirstPayment')
+    CreateInstallments = 'CRI', _('CreateInstallments')
+    CompleteSafeStart = 'CSS', _('CompleteSafeStart')
+
+
+class DoozezTask(TimeStampedModel):
+    status = models.CharField(
+        max_length=3,
+        choices=DoozezTaskStatus.choices,
+        default=DoozezTaskStatus.Pending,
+    )
+    task_type = models.CharField(
+        max_length=3,
+        choices=DoozezTaskType.choices
+    )
+    parameters = JSONField(null=True)
+

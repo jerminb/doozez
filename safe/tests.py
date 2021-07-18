@@ -228,16 +228,16 @@ class UsersManagersTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], 1)
 
-    def test_post_payment_methods(self):
-        User = get_user_model()
-        User.objects.create_user(email='alice@user.com', first_name='alice', last_name='bob', password='foo')
-        data = {
-            'is_default': False
-        }
-        client = APIClient()
-        client.login(username='alice@user.com', password='foo')
-        response = client.post(reverse('paymentmethod-list'),
-                               data=json.dumps(data),
-                               content_type='application/json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['is_default'], True)
+    # def test_post_payment_methods(self):
+    #     User = get_user_model()
+    #     User.objects.create_user(email='alice@user.com', first_name='alice', last_name='bob', password='foo')
+    #     data = {
+    #         'is_default': False
+    #     }
+    #     client = APIClient()
+    #     client.login(username='alice@user.com', password='foo')
+    #     response = client.post(reverse('paymentmethod-list'),
+    #                            data=json.dumps(data),
+    #                            content_type='application/json')
+    #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    #     self.assertEqual(response.data['is_default'], True)
