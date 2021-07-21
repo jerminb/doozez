@@ -182,18 +182,18 @@ class TaskService(object):
     def getTasksWithConcurrencyWithQ(self, query):
         return DoozezTask.objects.select_for_update().filter(query)
 
-    def getPendingTasksOrderedbyCreationDate(self):
-        return self.getTasksWithConcurrencyWithQ(Q(status=DoozezTaskStatus.Pending)).order_by('-created_on')
+    def getOrderedPendingTasksForJob(self, job_id):
+        return self.getTasksWithConcurrencyWithQ(Q(status=DoozezTaskStatus.Pending) & Q(job=job_id)).order_by('-sequence', '-created_on')
 
-    def getNextRunableTask(self):
-        return self.getPendingTasksOrderedbyCreationDate().first()
+    def getNextRunableTask(self, job_id):
+        return self.getOrderedPendingTasksForJob(job_id).first()
 
-    def runNextRunnableTask(self):
+    def runNextRunnableTask(self, job_id):
         task = None
         with transaction.atomic():
-            task = self.getNextRunableTask()
+            task = self.getNextRunableTask(job_id)
             if task is None:
                 return
-            task.status = DoozezTaskStatus.Running
+            task.startRunning()
             task.save()
         return run(task.task_type, **json.loads(task.parameters))

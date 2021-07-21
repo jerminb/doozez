@@ -8,13 +8,14 @@ from django.views.generic import TemplateView
 from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework import permissions, status
+from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
     InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer, \
-    ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer
-from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod
+    ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer, JobSerializer
+from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod, DoozezJob
 from .services import InvitationService, SafeService, PaymentMethodService
 
 
@@ -29,6 +30,7 @@ class ConfirmatioView(TemplateView):
         else:
             service.approveWithExternalSuccessWithFlowId(flow_id)
         return super().get(request, *args, **kwargs)
+
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -213,3 +215,19 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
                             status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class JobsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ReadOnly ViewSet for Jobs
+    """
+
+    queryset = DoozezJob.objects.all()
+    serializer_class = JobSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=True, methods=['get'], url_path='tasks/')
+    def get_with_task_status(self, request, *args, **kwargs):
+        job = self.get_object()
+        serializer = self.get_serializer_class()(job, context={'request': request})
+        return Response(serializer.data)

@@ -182,9 +182,42 @@ class GCFlow(models.Model):
     payment_method = models.OneToOneField(PaymentMethod, on_delete=models.CASCADE)
 
 
+class DoozezJobStatus(models.TextChoices):
+    Created = 'CRT', _('Created')
+    Successful = 'SUC', _('Success')
+    Failed = 'FLD', _('Failed')
+
+
+class DoozezJobType(models.TextChoices):
+    StartSafe = 'SSF', _('StartSafe')
+
+
+class DoozezJob(TimeStampedModel):
+    status = FSMField(
+        choices=DoozezJobStatus.choices,
+        default=DoozezJobStatus.Created,
+        protected=True,
+    )
+    job_type = models.CharField(
+        max_length=3,
+        choices=DoozezJobType.choices
+    )
+    user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
+
+    @transition(field=status, source=[DoozezJobStatus.Created],
+                target=DoozezJobStatus.Successful)
+    def finishSuccessfully(self):
+        pass
+
+    @transition(field=status, source=[DoozezJobStatus.Created],
+                target=DoozezJobStatus.Failed)
+    def finishWithFailure(self):
+        pass
+
+
 class DoozezTaskStatus(models.TextChoices):
     Pending = 'PND', _('Pending')
-    Running = 'ACT', _('Running')
+    Running = 'RUN', _('Running')
     Successful = 'SUC', _('Success')
     Failed = 'FLD', _('Failed')
 
@@ -197,14 +230,25 @@ class DoozezTaskType(models.TextChoices):
 
 
 class DoozezTask(TimeStampedModel):
-    status = models.CharField(
-        max_length=3,
+    status = FSMField(
         choices=DoozezTaskStatus.choices,
         default=DoozezTaskStatus.Pending,
+        protected=True,
     )
     task_type = models.CharField(
         max_length=3,
         choices=DoozezTaskType.choices
     )
     parameters = JSONField(null=True)
+    exceptions = JSONField(null=True)
+    job = models.ForeignKey(DoozezJob, on_delete=models.CASCADE, related_name='jobs_tasks', null=True)
+    sequence = models.PositiveIntegerField(default=0)
+
+    @transition(field=status, source=[DoozezTaskStatus.Pending],
+                target=DoozezTaskStatus.Running)
+    def startRunning(self):
+        pass
+
+    def __str__(self):
+        return '%d, %s: status: %s, exceptions: %s' % (self.id, self.get_task_type_display(), self.get_status_display(), self.exceptions)
 

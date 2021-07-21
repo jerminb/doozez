@@ -9,6 +9,7 @@ router.register(r'groups', views.GroupViewSet)
 router.register(r'invitations', views.InvitationViewSet, basename="invitation")
 router.register(r'participations', views.ParticipationViewSet, basename="participation")
 router.register(r'payment-methods', views.PaymentMethodViewSet, basename="paymentmethod")
+router.register(r'jobs', views.JobsViewSet, basename="job")
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.

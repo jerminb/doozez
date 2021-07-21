@@ -6,7 +6,8 @@ from rest_framework.reverse import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from .models import Safe, Invitation, InvitationStatus, PaymentMethod
+from .models import Safe, Invitation, InvitationStatus, PaymentMethod, DoozezJob, DoozezJobType, DoozezTaskStatus, \
+    DoozezTaskType, DoozezTask
 
 
 class UsersManagersTests(TestCase):
@@ -241,3 +242,33 @@ class UsersManagersTests(TestCase):
     #                            content_type='application/json')
     #     self.assertEqual(response.status_code, status.HTTP_201_CREATED)
     #     self.assertEqual(response.data['is_default'], True)
+
+    def test_get_jobs_with_id(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":0.1}', job=job, sequence=0)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":0.2}', job=job, sequence=0)
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('job-detail', args=[job.pk]),
+                              content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['jobs_tasks']), 2)
+
+    def test_get_jobs_with_task_status(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Failed, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":0.1}', job=job, sequence=0)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":0.2}', job=job, sequence=0)
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('job-get-with-task-status', args=[job.pk])+"?status=FLD",
+                              content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['jobs_tasks']), 1)

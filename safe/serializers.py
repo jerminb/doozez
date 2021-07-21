@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import serializers
 from django.contrib.auth.models import Group
 from rest_auth.registration.serializers import RegisterSerializer
@@ -5,7 +6,7 @@ from rest_auth.registration.serializers import RegisterSerializer
 from allauth.account.adapter import get_adapter
 from allauth.account.utils import setup_user_email
 
-from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation, PaymentMethod
+from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation, PaymentMethod, DoozezJob, DoozezTask
 from .fields import NullableJSONField
 
 
@@ -76,6 +77,7 @@ class PaymentMethodSerializer(serializers.ModelSerializer):
 
 class PaymentMethodReadSerializer(serializers.ModelSerializer):
     redirect_url = serializers.CharField(source='gcflow.flow_redirect_url')
+
     class Meta:
         model = PaymentMethod
         fields = ['id', 'is_default', 'redirect_url', 'status']
@@ -102,3 +104,30 @@ class ParticipationRetrieveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Participation
         fields = ['id', 'user_role', 'status', 'user', 'safe', 'payment_method', 'win_sequence']
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    task_type = serializers.CharField(source='get_task_type_display')
+
+    class Meta:
+        model = DoozezTask
+        fields = ['id', 'created_on', 'status', 'task_type']
+
+
+class JobSerializer(serializers.ModelSerializer):
+    jobs_tasks = serializers.SerializerMethodField('get_tasks')
+    job_type = serializers.CharField(source='get_job_type_display')
+
+    class Meta:
+        model = DoozezJob
+        fields = ['id', 'created_on', 'status', 'job_type', 'jobs_tasks']
+
+    def get_tasks(self, job):
+        request = self.context.get('request')
+        queried_status = request.query_params.get('status')
+        task_queryset = DoozezTask.objects.filter(Q(job=job))
+        if queried_status is not None:
+            task_queryset = task_queryset.filter(Q(status=queried_status))
+        serializer = TaskSerializer(instance=task_queryset, many=True, context=self.context)
+
+        return serializer.data

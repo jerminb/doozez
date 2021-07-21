@@ -1,6 +1,52 @@
 from django.core.exceptions import ValidationError
 import gocardless_pro
 
+from . import utils
+
+
+class GCInstalmentSchedule(object):
+    id = ""
+    created_at = ""
+    name = ""
+    status = ""
+    total_amount = ""
+    currency = ""
+    mandate = ""
+    idempotency_key = ""
+    payment_errors = []
+    payments = []
+
+    def __init__(self, id, created_at, name, status, total_amount, currency, mandate, idempotency_key=""):
+        self.id = id
+        self.created_at = created_at
+        self.name = name
+        self.status = status
+        self.total_amount = total_amount
+        self.currency = currency
+        self.mandate = mandate
+        self.idempotency_key = idempotency_key
+
+
+class GCPayment(object):
+    id = ""
+    created_at = ""
+    status = ""
+    amount = ""
+    currency = ""
+    mandate = ""
+    charge_date = ""
+    idempotency_key = ""
+
+    def __init__(self, id, created_at, status, amount, currency, mandate, charge_date="", idempotency_key=""):
+        self.id = id
+        self.created_at = created_at
+        self.status = status
+        self.amount = amount
+        self.currency = currency
+        self.mandate = mandate
+        self.charge_date = charge_date
+        self.idempotency_key = idempotency_key
+
 
 class GCMandate(object):
     id = ""
@@ -79,7 +125,8 @@ class PaymentGatewayClient(object):
             params={
                 "session_token": session_token
             })
-        return ConfirmationRedirectFlow(redirect_flow.links.mandate, redirect_flow.links.customer, redirect_flow.confirmation_url)
+        return ConfirmationRedirectFlow(redirect_flow.links.mandate, redirect_flow.links.customer,
+                                        redirect_flow.confirmation_url)
 
     def get_mandate(self, mandate_id):
         if mandate_id is None or mandate_id == "":
@@ -89,3 +136,59 @@ class PaymentGatewayClient(object):
             return None
         return GCMandate(mandate_id, mandate.scheme, mandate.status)
 
+    def create_payment(self, mandate_id, amount, currency="GBP"):
+        idempotency_key = utils.id_generator()
+        payment = self.get_client().payments.create(
+            params={
+                "amount": amount,  # amount in pence
+                "currency": currency,
+                "links": {
+                    "mandate": mandate_id
+                },
+                "metadata": {
+                    # Almost all resources in the API let you store custom metadata,
+                    # which you can retrieve later
+                }
+            }, headers={
+                'Idempotency-Key': idempotency_key,
+            })
+
+        return GCPayment(id=payment.id, created_at=payment.created_at, status=payment.status, amount=payment.amount,
+                         currency=payment.currency,
+                         mandate=payment.links.mandate, charge_date=payment.charge_date,
+                         idempotency_key=idempotency_key)
+
+    def get_payment(self, payment_id):
+        payment = self.get_client().payments.get(payment_id)
+        return GCPayment(id=payment.id, created_at=payment.created_at, status=payment.status, amount=payment.amount,
+                         currency=payment.currency,
+                         mandate=payment.links.mandate, charge_date=payment.charge_date)
+
+    def create_installment_with_schedule(self, name, mandate_id, total_amount, app_fee, amounts,
+                                         currency, start_date, interval, interval_unit='monthly'):
+        idempotency_key = utils.id_generator()
+        instalment_schedule = self.get_client().instalment_schedules.create_with_schedule(
+            params={
+                "name": name,
+                "total_amount": total_amount,  # total amount in pence
+                "app_fee": app_fee,
+                "currency": currency,
+                "schedule": {
+                    "start_date": start_date,
+                    "interval_unit": interval_unit,
+                    "interval": interval,
+                    "amounts": amounts
+                },
+                "links": {
+                    "mandate": mandate_id
+                },
+                "metadata": {}
+            }, headers={
+                "Idempotency-Key": idempotency_key
+            }
+        )
+        return GCInstalmentSchedule(id=instalment_schedule.id, created_at=instalment_schedule.created_at,
+                                    name=instalment_schedule.name, status=instalment_schedule.status,
+                                    total_amount=instalment_schedule.amount,
+                                    currency=instalment_schedule.currency, mandate=instalment_schedule.links.mandate,
+                                    idempotency_key=idempotency_key)

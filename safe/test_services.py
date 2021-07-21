@@ -9,7 +9,7 @@ from unittest import mock
 from .decorators import clear, doozez_task
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
-    MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType
+    MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService
 
 
@@ -121,7 +121,7 @@ class ServiceTest(TestCase):
             *expected_link_dict.values())
         expected_complete_dict = {
             "links": expected_link,
-            "confirmation_urls": "bar"
+            "confirmation_url": "bar"
         }
         mock_gc.complete.return_value = namedtuple("ConfirmationRedirectFlow", expected_complete_dict.keys())(
             *expected_complete_dict.values())
@@ -149,7 +149,50 @@ class ServiceTest(TestCase):
         def test_draw(safe_id):
             return safe_id
 
-        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,parameters='{"safe_id":1}')
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"safe_id":1}', job=job, sequence=0)
         service = TaskService()
-        result = service.runNextRunnableTask()
+        result = service.runNextRunnableTask(job.pk)
         self.assertEqual(result, 1)
+        task = DoozezTask.objects.get(pk=1)
+        self.assertEqual(task.status, DoozezTaskStatus.Running)
+
+    def test_task_sequence(self):
+        clear()
+
+        @doozez_task(type=DoozezTaskType.Draw)
+        def test_draw(sequence):
+            return sequence
+
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":10}', job=job, sequence=10)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":15}', job=job, sequence=15)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":5}', job=job, sequence=5)
+        service = TaskService()
+        result = service.runNextRunnableTask(job.pk)
+        self.assertEqual(result, 15)
+
+    def test_task_duplicate_sequence(self):
+        clear()
+
+        @doozez_task(type=DoozezTaskType.Draw)
+        def test_draw(sequence):
+            return sequence
+
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":0.1}', job=job, sequence=0)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":0.2}', job=job, sequence=0)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"sequence":0.3}', job=job, sequence=0)
+        service = TaskService()
+        result = service.runNextRunnableTask(job.pk)
+        self.assertEqual(result, 0.3)
