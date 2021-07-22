@@ -8,10 +8,11 @@ from django.views.generic import TemplateView
 from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework import permissions, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, permission_classes
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
+from .permissions import IsOwner
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
     InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer, \
     ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer, JobSerializer
@@ -30,6 +31,33 @@ class ConfirmatioView(TemplateView):
         else:
             service.approveWithExternalSuccessWithFlowId(flow_id)
         return super().get(request, *args, **kwargs)
+
+
+class OwnerViewSet(viewsets.ModelViewSet):
+    def get_owner_filter(self):
+        pass
+
+    def get_queryset(self):
+        query_set = self.queryset
+        owner_filter = self.get_owner_filter()
+        if owner_filter is not None:
+            result = query_set.filter(owner_filter)
+            return result
+        else:
+            return query_set
+
+
+class ReadOnlyOwnerViewSet(viewsets.ReadOnlyModelViewSet):
+    def get_owner_filter(self):
+        pass
+
+    def get_queryset(self):
+        query_set = self.queryset
+        owner_filter = self.get_owner_filter()
+        if owner_filter is not None:
+            return query_set.filter(owner_filter)
+        else:
+            return query_set
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -56,10 +84,17 @@ class GroupViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
 
-class SafeViewSet(viewsets.ModelViewSet):
+class SafeViewSet(OwnerViewSet):
     """
     API endpoint that allows safes to be viewed or edited.
     """
+    def get_owner_filter(self):
+        user = self.request.user
+        return Q(participations_safe__user=user) | Q(invitations_safe__recipient=user)
+
+    def get_queryset(self):
+        result = super().get_queryset().distinct()
+        return result
 
     def create(self, request):
         """
@@ -82,11 +117,13 @@ class SafeViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
 
-class InvitationViewSet(viewsets.ModelViewSet):
-    invitation_service = InvitationService()
+class InvitationViewSet(OwnerViewSet):
     """
     API endpoint that allows safes to be viewed or edited.
     """
+    def get_owner_filter(self):
+        user = self.request.user
+        return Q(recipient=user) | Q(sender=user)
 
     def get_serializer_class(self):
         if self.request and (self.request.method == 'POST' or self.request.method == 'PUT'
@@ -100,9 +137,8 @@ class InvitationViewSet(viewsets.ModelViewSet):
         This view should return a list of all the invitations
         for the currently authenticated user.
         """
-        user = self.request.user
         safe = self.request.query_params.get('safe')
-        result = Invitation.objects.filter(Q(recipient=user) | Q(sender=user))
+        result = super().get_queryset()
         if safe is not None:
             result = result.filter(safe__id=safe)
         return result
@@ -152,6 +188,8 @@ class InvitationViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     permission_classes = [permissions.IsAuthenticated]
+    invitation_service = InvitationService()
+    queryset = Invitation.objects.all()
 
 
 class ParticipationViewSet(viewsets.ReadOnlyModelViewSet):
@@ -167,20 +205,24 @@ class ParticipationViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = ParticipationListSerializer(result, many=True)
         return Response(serializer.data)
 
-    def retrieve(self, request, pk=None):
-        user = self.request.user
-        queryset = self.get_queryset().filter(user=user)
-        participation = get_object_or_404(queryset, pk=pk)
-        serializer = ParticipationRetrieveSerializer(participation)
-        return Response(serializer.data)
+    def get_serializer_class(self):
+        if self.action and (self.action == 'list'):
+            return ParticipationListSerializer
+        else:
+            return ParticipationRetrieveSerializer
 
     queryset = Participation.objects.all()
     serializer_class = ParticipationListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsOwner]
 
 
-class PaymentMethodViewSet(viewsets.ModelViewSet):
+class PaymentMethodViewSet(OwnerViewSet):
     permission_classes = [permissions.IsAuthenticated]
+    queryset = PaymentMethod.objects.all()
+
+    def get_owner_filter(self):
+        user = self.request.user
+        return Q(user=user)
 
     def get_serializer_class(self):
         if self.request and (self.request.method == 'POST' or self.request.method == 'PUT'
@@ -188,15 +230,6 @@ class PaymentMethodViewSet(viewsets.ModelViewSet):
             return PaymentMethodSerializer
         else:
             return PaymentMethodReadSerializer
-
-    def get_queryset(self):
-        """
-        This view should return a list of all the PaymentMethods
-        for the currently authenticated user.
-        """
-        user = self.request.user
-        result = PaymentMethod.objects.filter(Q(user=user))
-        return result
 
     def create(self, request):
         """

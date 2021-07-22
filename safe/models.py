@@ -141,7 +141,7 @@ class Invitation(models.Model):
     )
     sender = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='sender')
     recipient = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='recipient')
-    safe = models.ForeignKey(Safe, on_delete=models.CASCADE)
+    safe = models.ForeignKey(Safe, on_delete=models.CASCADE, related_name='invitations_safe')
 
 
 class ParticipantRole(models.TextChoices):
@@ -170,7 +170,7 @@ class Participation(models.Model):
     )
     invitation = models.ForeignKey(Invitation, on_delete=models.CASCADE, related_name='invitation', null=True)
     user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
-    safe = models.ForeignKey(Safe, on_delete=models.CASCADE, related_name='safe')
+    safe = models.ForeignKey(Safe, on_delete=models.CASCADE, related_name='participations_safe')
     payment_method = models.ForeignKey(PaymentMethod, on_delete=models.PROTECT, related_name='payment_method')
     win_sequence = models.PositiveIntegerField(null=True)
 

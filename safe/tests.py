@@ -115,7 +115,8 @@ class UsersManagersTests(TestCase):
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         bob = User.objects.create_user(email='bob@user.com', password='foo')
-        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob,
+                                               safe=safealice)
         bob_payment_method = PaymentMethod.objects.create(user=bob, is_default=True)
         data = {
             'action': 'ACCEPT',
@@ -124,8 +125,8 @@ class UsersManagersTests(TestCase):
         client = APIClient()
         client.login(username='bob@user.com', password='foo')
         response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
-                               data=json.dumps(data),
-                               content_type='application/json')
+                                data=json.dumps(data),
+                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'Accepted')
 
@@ -134,15 +135,16 @@ class UsersManagersTests(TestCase):
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         bob = User.objects.create_user(email='bob@user.com', password='foo')
-        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob,
+                                               safe=safealice)
         data = {
             'action': 'ACCEPT'
         }
         client = APIClient()
         client.login(username='bob@user.com', password='foo')
         response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
-                               data=json.dumps(data),
-                               content_type='application/json')
+                                data=json.dumps(data),
+                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_decline_invitation(self):
@@ -150,7 +152,8 @@ class UsersManagersTests(TestCase):
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         bob = User.objects.create_user(email='bob@user.com', password='foo')
-        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob,
+                                               safe=safealice)
         PaymentMethod.objects.create(user=bob, is_default=True)
         data = {
             'action': 'DECLINE',
@@ -158,14 +161,15 @@ class UsersManagersTests(TestCase):
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
         response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
-                               data=json.dumps(data),
-                               content_type='application/json')
+                                data=json.dumps(data),
+                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'Declined')
 
     def test_post_safe_for_user(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
+        User.objects.create_user(email='bob@user.com', password='foo')
         payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
         data = {
             'name': 'foosafe',
@@ -183,11 +187,32 @@ class UsersManagersTests(TestCase):
                               content_type='application/json')
         self.assertEqual(response.data['user']['email'], "alice@user.com")
         self.assertEqual(response.data['payment_method']['is_default'], True)
-        response = client.get(reverse('participation-list')+"?safe=1",
+        response = client.get(reverse('participation-list') + "?safe=1",
                               content_type='application/json')
         self.assertEqual(response.data[0]['user']['email'], "alice@user.com")
 
-    def test_retrieve_payment_method_for_other_user(self):
+    def test_get_safe_for_participant(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        User.objects.create_user(email='bob@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        data = {
+            'name': 'foosafe',
+            'monthly_payment': '2',
+            'payment_method_id': payment_method.pk
+        }
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.post(reverse('safe-list'),
+                               data=json.dumps(data),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        client.login(username='bob@user.com', password='foo')
+        response = client.get(reverse('safe-list'),
+                              content_type='application/json')
+        self.assertEqual(len(response.data), 0)
+
+    def test_retrieve_participation_for_other_user(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         User.objects.create_user(email='bob@user.com', password='foo')
@@ -206,7 +231,18 @@ class UsersManagersTests(TestCase):
         client.login(username='bob@user.com', password='foo')
         response = client.get(reverse('participation-detail', args=[1]),
                               content_type='application/json')
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_retrieve_payment_method_for_other_user(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        User.objects.create_user(email='bob@user.com', password='foo')
+        PaymentMethod.objects.create(user=alice, is_default=True)
+        client = APIClient()
+        client.login(username='bob@user.com', password='foo')
+        response = client.get(reverse('paymentmethod-list'),
+                              content_type='application/json')
+        self.assertEqual(len(response.data), 0)
 
     def test_post_participants(self):
         User = get_user_model()
@@ -221,10 +257,19 @@ class UsersManagersTests(TestCase):
     def test_get_safe_details_with_id(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
-        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        #safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        data = {
+            'name': 'foosafe',
+            'monthly_payment': '2',
+            'payment_method_id': payment_method.pk
+        }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
-        response = client.get(reverse('safe-detail', args=[safealice.pk]),
+        response = client.post(reverse('safe-list'),
+                               data=json.dumps(data),
+                               content_type='application/json')
+        response = client.get(reverse('safe-detail', args=[response.data['id']]),
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], 1)
@@ -268,7 +313,7 @@ class UsersManagersTests(TestCase):
                                   parameters='{"sequence":0.2}', job=job, sequence=0)
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
-        response = client.get(reverse('job-get-with-task-status', args=[job.pk])+"?status=FLD",
+        response = client.get(reverse('job-get-with-task-status', args=[job.pk]) + "?status=FLD",
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['jobs_tasks']), 1)
