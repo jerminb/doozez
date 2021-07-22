@@ -41,8 +41,7 @@ class OwnerViewSet(viewsets.ModelViewSet):
         query_set = self.queryset
         owner_filter = self.get_owner_filter()
         if owner_filter is not None:
-            result = query_set.filter(owner_filter)
-            return result
+            return query_set.filter(owner_filter)
         else:
             return query_set
 
