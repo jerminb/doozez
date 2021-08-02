@@ -178,8 +178,11 @@ class ParticipationService(object):
                                             user_role=ParticipantRole.System,
                                             payment_method=default_payment_method)
 
-    def leaveSafe(self, pk):
+    def leaveSafe(self, pk, user_id):
         participation = Participation.objects.get(pk=pk)
+        if user_id != participation.user.pk:
+            raise ValidationError("user_id {} does not match participation user id {}. only participant can leave a "
+                                  "participation".format(user_id, participation.user.pk))
         if participation is None:
             raise ValidationError("no participation found for pk {}".format(pk))
         if participation.status != ParticipationStatus.Active:

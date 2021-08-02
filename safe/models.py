@@ -129,6 +129,7 @@ class InvitationStatus(models.TextChoices):
     Pending = 'PND', _('Pending')
     Accepted = 'ACC', _('Accepted')
     Declined = 'DEC', _('Declined')
+    RemovedBySender = 'RBS', _('RemovedBySender')
 
 
 class Invitation(models.Model):
