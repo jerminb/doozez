@@ -5,7 +5,7 @@ from django.db import transaction
 
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, \
-    ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus
+    ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -177,6 +177,17 @@ class ParticipationService(object):
                                             safe=safe,
                                             user_role=ParticipantRole.System,
                                             payment_method=default_payment_method)
+
+    def leaveSafe(self, pk):
+        participation = Participation.objects.get(pk=pk)
+        if participation is None:
+            raise ValidationError("no participation found for pk {}".format(pk))
+        if participation.status != ParticipationStatus.Active:
+            raise ValidationError("participation for pk {} is not Active".format(pk))
+        if participation.safe.status != SafeStatus.PendingParticipants:
+            raise ValidationError("participation can not be cancelled for an active safe. current safe status is {}".format(participation.safe.status))
+        participation.leaveActiveParticipation()
+        participation.save()
 
 
 class SafeService(object):

@@ -9,7 +9,8 @@ from unittest import mock
 from .decorators import clear, doozez_task
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
-    MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus
+    MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, SafeStatus, \
+    ParticipationStatus
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
     ParticipationService
 
@@ -97,6 +98,47 @@ class ServiceTest(TestCase):
         PaymentMethod.objects.create(user=alice, is_default=False)
         payment_methods = PaymentMethodService("", "").getAllPaymentMethodsForUser(user=alice)
         self.assertEqual(len(payment_methods), 2)
+
+    def test_leave_participation(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice)
+        participation = Participation.objects.create(user=alice,
+                                                     safe=safe,
+                                                     user_role=ParticipantRole.Initiator,
+                                                     payment_method=payment_method,
+                                                     status=ParticipationStatus.Active)
+        participation_service = ParticipationService()
+        participation_service.leaveSafe(participation.pk)
+        participation = Participation.objects.get(pk=participation.pk)
+        self.assertEqual(participation.status, ParticipationStatus.Left)
+
+    def test_leave_participation_status_error(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice)
+        participation = Participation.objects.create(user=alice,
+                                                     safe=safe,
+                                                     user_role=ParticipantRole.Initiator,
+                                                     payment_method=payment_method)
+        participation_service = ParticipationService()
+        with self.assertRaises(ValidationError):
+            participation_service.leaveSafe(participation.pk)
+
+    def test_leave_participation_safe_status_error(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice, status=SafeStatus.Active)
+        participation = Participation.objects.create(user=alice,
+                                                     safe=safe,
+                                                     user_role=ParticipantRole.Initiator,
+                                                     payment_method=payment_method)
+        participation_service = ParticipationService()
+        with self.assertRaises(ValidationError):
+            participation_service.leaveSafe(participation.pk)
 
     @mock.patch('gocardless_pro.Client.redirect_flows')
     def test_create_payments_for_user(self, mock_gc):

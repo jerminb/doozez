@@ -165,16 +165,21 @@ class Participation(models.Model):
         choices=ParticipantRole.choices,
         default=ParticipantRole.Participant,
     )
-    status = models.CharField(
-        max_length=3,
+    status = FSMField(
         choices=ParticipationStatus.choices,
         default=ParticipationStatus.Pending,
+        protected=True,
     )
     invitation = models.ForeignKey(Invitation, on_delete=models.CASCADE, related_name='invitation', null=True)
     user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
     safe = models.ForeignKey(Safe, on_delete=models.CASCADE, related_name='participations_safe')
     payment_method = models.ForeignKey(PaymentMethod, on_delete=models.PROTECT, related_name='payment_method')
     win_sequence = models.PositiveIntegerField(null=True)
+
+    @transition(field=status, source=[ParticipationStatus.Active],
+                target=ParticipationStatus.Left)
+    def leaveActiveParticipation(self):
+        pass
 
 
 class GCFlow(models.Model):
