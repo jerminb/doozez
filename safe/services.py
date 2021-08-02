@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from .client_interfaces import PaymentGatewayClient
@@ -9,6 +10,14 @@ from .decorators import run
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+
+
+class UserService(object):
+    def __init__(self):
+        self.User = get_user_model()
+
+    def getSystemUser(self):
+        return self.User.objects.filter(is_system=True).first()
 
 
 class InvitationService(object):
@@ -46,23 +55,6 @@ class InvitationService(object):
         invitation.status = InvitationStatus.Declined
         invitation.save()
         return invitation
-
-
-class ParticipationService(object):
-    def __init__(self):
-        pass
-
-    def getParticipationWithQ(self, query):
-        return Participation.objects.filter(query)
-
-    def getParticipationForSafe(self, safe_id):
-        return self.getParticipationWithQ(Q(safe__id=safe_id)).all()
-
-    def createParticipation(self, user, invitation, safe, payment_method, role):
-        participation = Participation(user=user, invitation=invitation, safe=safe,
-                                      payment_method=payment_method, user_role=role)
-        participation.save()
-        return participation
 
 
 class MandateService(object):
@@ -152,6 +144,41 @@ class PaymentMethodService(object):
         return payment_method
 
 
+class ParticipationService(object):
+    user_service = UserService()
+    payment_method_service = PaymentMethodService()
+
+    def __init__(self):
+        pass
+
+    def getParticipationWithQ(self, query):
+        return Participation.objects.filter(query)
+
+    def getParticipationForSafe(self, safe_id):
+        return self.getParticipationWithQ(Q(safe__id=safe_id)).all()
+
+    def createParticipation(self, user, invitation, safe, payment_method, role):
+        participation = Participation(user=user, invitation=invitation, safe=safe,
+                                      payment_method=payment_method, user_role=role)
+        participation.save()
+        return participation
+
+    def createParticipationForSystemUser(self, safe):
+        system_user = self.user_service.getSystemUser()
+        if system_user is None:
+            raise ValidationError("no system user found")
+        # TODO: current payment_method is added as migration with no GCMandate. We need a proper setup
+        #  process to create a new Mandate (if doesn't exist) and link it to default payment_method of
+        #  system user.
+        default_payment_method = self.payment_method_service.getDefaultPaymentMethodForUser(system_user)
+        if default_payment_method is None:
+            raise ValidationError("no payment method found for system user")
+        return Participation.objects.create(user=system_user,
+                                            safe=safe,
+                                            user_role=ParticipantRole.System,
+                                            payment_method=default_payment_method)
+
+
 class SafeService(object):
     participation_service = ParticipationService()
     payment_method_service = PaymentMethodService()
@@ -167,6 +194,7 @@ class SafeService(object):
         safe = Safe(name=name, monthly_payment=monthly_payment, total_participants=1,
                     initiator=current_user)
         safe.save()
+        self.participation_service.createParticipationForSystemUser(safe)
         self.participation_service.createParticipation(user=current_user, safe=safe,
                                                        payment_method=payment_method,
                                                        role=ParticipantRole.Initiator,

@@ -10,12 +10,17 @@ from .decorators import clear, doozez_task
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
     MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus
-from .services import InvitationService, SafeService, PaymentMethodService, TaskService
+from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
+    ParticipationService
 
 
 class ServiceTest(TestCase):
     def setUp(self):
         self.User = get_user_model()
+
+    def test_system_user(self):
+        service = UserService()
+        self.assertEqual(service.getSystemUser().email, 'system@doozez.internal')
 
     def test_recipient_cant_be_sender(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
@@ -43,7 +48,7 @@ class ServiceTest(TestCase):
         invitation = service.acceptInvitation(invitation, payment_method.pk, bob)
         participation = Participation.objects.first()
         self.assertEqual(invitation.status, InvitationStatus.Accepted)
-        self.assertEqual(participation.user.pk, 2)
+        self.assertEqual(participation.user.pk, bob.pk)
         self.assertEqual(participation.user_role, ParticipantRole.Participant)
 
     def test_accept_invite_with_no_payment_method(self):
@@ -65,14 +70,26 @@ class ServiceTest(TestCase):
         with self.assertRaises(ValidationError):
             service.acceptInvitation(invitation, 1, alice)
 
+    def test_create_participation_for_system_user(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        service = ParticipationService()
+        participation = service.createParticipationForSystemUser(safe)
+        self.assertEqual(participation.user.is_system, True)
+
     def test_participant_after_create_safe(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
         service = SafeService()
-        service.createSafe(alice, 'foosafe', 1, payment_method.pk)
-        participation = Participation.objects.first()
-        self.assertEqual(participation.user.pk, 1)
+        participation_service = ParticipationService()
+        safe = service.createSafe(alice, 'foosafe', 1, payment_method.pk)
+        participations = participation_service.getParticipationForSafe(safe_id=safe.pk)
+        participation = participations.filter(user=alice).first()
+        self.assertEqual(len(participations), 2)
+        self.assertEqual(participation.user.pk, alice.pk)
         self.assertEqual(participation.user_role, ParticipantRole.Initiator)
+        participation = participations.filter(user__is_system=True).first()
+        self.assertEqual(participation.user_role, ParticipantRole.System)
 
     def test_get_all_payments_for_user(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')

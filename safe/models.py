@@ -31,6 +31,7 @@ class ActionPayload(models.Model):
 class DoozezUser(AbstractUser):
     username = None
     email = models.EmailField(_('email address'), unique=True)
+    is_system = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -147,6 +148,7 @@ class Invitation(models.Model):
 class ParticipantRole(models.TextChoices):
     Initiator = 'INT', _('Initiator')
     Participant = 'PCT', _('Participant')
+    System = 'SYS', _('System')
 
 
 class ParticipationStatus(models.TextChoices):

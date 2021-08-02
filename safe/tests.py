@@ -183,13 +183,13 @@ class UsersManagersTests(TestCase):
                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'PPT')
-        response = client.get(reverse('participation-detail', args=[1]),
+        response = client.get(reverse('participation-detail', args=[2]),
                               content_type='application/json')
         self.assertEqual(response.data['user']['email'], "alice@user.com")
         self.assertEqual(response.data['payment_method']['is_default'], True)
         response = client.get(reverse('participation-list') + "?safe=1",
                               content_type='application/json')
-        self.assertEqual(response.data[0]['user']['email'], "alice@user.com")
+        self.assertEqual(response.data[1]['user']['email'], "alice@user.com")
 
     def test_get_safe_for_participant(self):
         User = get_user_model()
