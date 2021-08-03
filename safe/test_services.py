@@ -71,6 +71,26 @@ class ServiceTest(TestCase):
         with self.assertRaises(ValidationError):
             service.acceptInvitation(invitation, 1, alice)
 
+    def test_remove_invite(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        PaymentMethod.objects.create(user=bob, is_default=True)
+        service = InvitationService()
+        invitation = service.createInvitation(alice, bob, safe)
+        invitation = service.removeInvitation(invitation, alice)
+        self.assertEqual(invitation.status, InvitationStatus.RemovedBySender)
+
+    def test_remove_invite_with_non_sender(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        PaymentMethod.objects.create(user=bob, is_default=True)
+        service = InvitationService()
+        invitation = service.createInvitation(alice, bob, safe)
+        with self.assertRaises(ValidationError):
+            service.removeInvitation(invitation, bob)
+
     def test_create_participation_for_system_user(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)

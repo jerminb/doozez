@@ -136,14 +136,29 @@ class Invitation(models.Model):
     class Meta:
         unique_together = (('recipient', 'safe'),)
 
-    status = models.CharField(
-        max_length=3,
+    status = FSMField(
         choices=InvitationStatus.choices,
         default=InvitationStatus.Pending,
+        protected=True,
     )
     sender = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='sender')
     recipient = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='recipient')
     safe = models.ForeignKey(Safe, on_delete=models.CASCADE, related_name='invitations_safe')
+
+    @transition(field=status, source=[InvitationStatus.Pending],
+                target=InvitationStatus.Accepted)
+    def accept(self):
+        pass
+
+    @transition(field=status, source=[InvitationStatus.Pending],
+                target=InvitationStatus.Declined)
+    def decline(self):
+        pass
+
+    @transition(field=status, source=[InvitationStatus.Pending],
+                target=InvitationStatus.RemovedBySender)
+    def removePendingInvitation(self):
+        pass
 
 
 class ParticipantRole(models.TextChoices):

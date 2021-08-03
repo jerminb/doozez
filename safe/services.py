@@ -45,14 +45,24 @@ class InvitationService(object):
             raise ValidationError("no payment method found for user")
         participation_service.createParticipation(invitation.recipient, invitation, invitation.safe,
                                                   payment_method, ParticipantRole.Participant)
-        invitation.status = InvitationStatus.Accepted
+        invitation.accept()
         invitation.save()
         return invitation
 
     def declineInvitation(self, invitation):
         if invitation.status != InvitationStatus.Pending and invitation.status != InvitationStatus.Declined:
             raise ValidationError("only pending or declined invitations can be declined")
-        invitation.status = InvitationStatus.Declined
+        invitation.decline()
+        invitation.save()
+        return invitation
+
+    def removeInvitation(self, invitation, current_user):
+        if current_user.id != invitation.sender.id:
+            raise ValidationError("only sender can remove invitation")
+        if invitation.status != InvitationStatus.Pending:
+            raise ValidationError(
+                "only pending invitations can be removed by sender. current status is {}".format(invitation.status))
+        invitation.removePendingInvitation()
         invitation.save()
         return invitation
 
