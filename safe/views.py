@@ -9,6 +9,7 @@ from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework import permissions, status
 from rest_framework.decorators import action, permission_classes
+from django.core.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
@@ -171,17 +172,24 @@ class InvitationViewSet(OwnerViewSet):
         invitation = self.get_object()
         return self.invitation_service.declineInvitation(invitation)
 
+    def remove_invitation(self, json_data):
+        invitation = self.get_object()
+        return self.invitation_service.removeInvitation(invitation, self.request.user)
+
     def partial_update(self, request, *args, **kwargs):
         serializer = ActionPayloadSerializer(data=request.data)
         if serializer.is_valid():
             options = {Action.ACCEPT: self.accept_invitation,
                        Action.DECLINE: self.decline_invitation,
+                       Action.REMOVE: self.remove_invitation,
                        }
             try:
                 invitation = options[serializer.validated_data['action']](serializer.validated_data['json_data'])
                 return Response(data=self.get_serializer_class()(invitation, context={'request': request}).data,
                                 status=status.HTTP_200_OK)
             except TypeError as exp:
+                return Response(repr(exp), status=status.HTTP_400_BAD_REQUEST)
+            except ValidationError as exp:
                 return Response(repr(exp), status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

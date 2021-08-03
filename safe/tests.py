@@ -147,6 +147,23 @@ class UsersManagersTests(TestCase):
                                 content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_remove_invitation_with_recipeint(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        bob = User.objects.create_user(email='bob@user.com', password='foo')
+        invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob,
+                                               safe=safealice)
+        data = {
+            'action': 'REMOVE'
+        }
+        client = APIClient()
+        client.login(username='bob@user.com', password='foo')
+        response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
+                                data=json.dumps(data),
+                                content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_decline_invitation(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')

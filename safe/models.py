@@ -19,6 +19,7 @@ class TimeStampedModel(models.Model):
 class Action(models.TextChoices):
     ACCEPT = 'ACCEPT', _('Accept')
     DECLINE = 'DECLINE', _('Decline')
+    REMOVE = 'REMOVE', _('Remove')
 
 
 class ActionPayload(models.Model):
