@@ -18,7 +18,7 @@ from .serializers import UserSerializer, GroupSerializer, SafeSerializer, Invita
     InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer, \
     ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer, JobSerializer
 from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod, DoozezJob
-from .services import InvitationService, SafeService, PaymentMethodService
+from .services import InvitationService, SafeService, PaymentMethodService, ParticipationService
 
 
 class ConfirmatioView(TemplateView):
@@ -199,7 +199,7 @@ class InvitationViewSet(OwnerViewSet):
     queryset = Invitation.objects.all()
 
 
-class ParticipationViewSet(viewsets.ReadOnlyModelViewSet):
+class ParticipationViewSet(viewsets.ModelViewSet):
     """
     ReadOnly ViewSet for Participation
     """
@@ -218,9 +218,40 @@ class ParticipationViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             return ParticipationRetrieveSerializer
 
+    def leave_participation(self, json_data):
+        participation = self.get_object()
+        return self.participation_service.leaveSafe(participation.pk, self.request.user.pk)
+
+    def create(self, request):
+        return Response("", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def destroy(self, request, pk=None):
+        return Response("", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def update(self, request, pk=None):
+        return Response("", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def partial_update(self, request, *args, **kwargs):
+        serializer = ActionPayloadSerializer(data=request.data)
+        if serializer.is_valid():
+            options = {
+                Action.LEAVE: self.leave_participation,
+                       }
+            try:
+                participation = options[serializer.validated_data['action']](serializer.validated_data['json_data'])
+                return Response(data=self.get_serializer_class()(participation, context={'request': request}).data,
+                                status=status.HTTP_200_OK)
+            except TypeError as exp:
+                return Response(repr(exp), status=status.HTTP_400_BAD_REQUEST)
+            except ValidationError as exp:
+                return Response(repr(exp), status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     queryset = Participation.objects.all()
     serializer_class = ParticipationListSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwner]
+    participation_service = ParticipationService()
 
 
 class PaymentMethodViewSet(OwnerViewSet):

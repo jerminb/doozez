@@ -20,6 +20,7 @@ class Action(models.TextChoices):
     ACCEPT = 'ACCEPT', _('Accept')
     DECLINE = 'DECLINE', _('Decline')
     REMOVE = 'REMOVE', _('Remove')
+    LEAVE = 'LEAVE', _('Leave')
 
 
 class ActionPayload(models.Model):

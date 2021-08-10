@@ -1,4 +1,7 @@
 import json
+from collections import namedtuple
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
@@ -7,7 +10,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from .models import Safe, Invitation, InvitationStatus, PaymentMethod, DoozezJob, DoozezJobType, DoozezTaskStatus, \
-    DoozezTaskType, DoozezTask
+    DoozezTaskType, DoozezTask, Participation, ParticipantRole, SafeStatus, ParticipationStatus
 
 
 class UsersManagersTests(TestCase):
@@ -270,6 +273,28 @@ class UsersManagersTests(TestCase):
                                data=json.dumps({}),
                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_leave_participants(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice, status=SafeStatus.PendingParticipants)
+        participation = Participation.objects.create(user=alice,
+                                                     safe=safe,
+                                                     user_role=ParticipantRole.Initiator,
+                                                     payment_method=payment_method,
+                                                     status=ParticipationStatus.Active)
+        data = {
+            'action': 'LEAVE',
+        }
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.patch(reverse('participation-detail', args=[participation.pk]),
+                                data=json.dumps(data),
+                                content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], ParticipationStatus.Left.name)
 
     def test_get_safe_details_with_id(self):
         User = get_user_model()

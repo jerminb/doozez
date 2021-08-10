@@ -201,6 +201,7 @@ class ParticipationService(object):
             raise ValidationError("participation can not be cancelled for an active safe. current safe status is {}".format(participation.safe.status))
         participation.leaveActiveParticipation()
         participation.save()
+        return participation
 
 
 class SafeService(object):
