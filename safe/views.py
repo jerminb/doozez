@@ -302,3 +302,16 @@ class JobsViewSet(viewsets.ReadOnlyModelViewSet):
         job = self.get_object()
         serializer = self.get_serializer_class()(job, context={'request': request})
         return Response(serializer.data)
+
+
+class TokensViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        return Response("", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    @action(detail=True)
+    def get_user_for_token(self, request, *args, **kwargs):
+        return Response(data=UserSerializer(self.request.user, context={'request': request}).data,
+                        status=status.HTTP_200_OK)
+

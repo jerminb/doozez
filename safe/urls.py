@@ -2,6 +2,10 @@ from django.urls import include, path
 from rest_framework import routers
 from . import views
 
+token_detail = views.TokensViewSet.as_view({
+    'get': 'get_user_for_token',
+})
+
 router = routers.DefaultRouter()
 router.register(r'safes', views.SafeViewSet)
 router.register(r'users', views.UserViewSet, basename="doozezuser")
@@ -15,5 +19,6 @@ router.register(r'jobs', views.JobsViewSet, basename="job")
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     path('', include(router.urls)),
-    path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('tokens/user/', token_detail, name='tokens-user-detail'),
 ]

@@ -299,7 +299,7 @@ class UsersManagersTests(TestCase):
     def test_get_safe_details_with_id(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
-        #safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        # safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
         data = {
             'name': 'foosafe',
@@ -359,3 +359,13 @@ class UsersManagersTests(TestCase):
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['jobs_tasks']), 1)
+
+    def test_get_user_with_token(self):
+        User = get_user_model()
+        User.objects.create_user(email='alice@user.com', password='foo')
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('tokens-user-detail', args=[]),
+                              content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['email'], 'alice@user.com')
