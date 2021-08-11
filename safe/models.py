@@ -141,9 +141,6 @@ class InvitationStatus(models.TextChoices):
 
 
 class Invitation(models.Model):
-    class Meta:
-        unique_together = (('recipient', 'safe'),)
-
     status = FSMField(
         choices=InvitationStatus.choices,
         default=InvitationStatus.Pending,

@@ -173,7 +173,7 @@ class InvitationViewSet(OwnerViewSet):
 
     def decline_invitation(self, json_data):
         invitation = self.get_object()
-        return self.invitation_service.declineInvitation(invitation)
+        return self.invitation_service.declineInvitation(invitation, self.request.user)
 
     def remove_invitation(self, json_data):
         invitation = self.get_object()

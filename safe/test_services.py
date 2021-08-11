@@ -36,8 +36,18 @@ class ServiceTest(TestCase):
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
         service = InvitationService()
         service.createInvitation(alice, bob, safe)
-        with self.assertRaises(IntegrityError):
+        with self.assertRaises(ValidationError):
             service.createInvitation(alice, bob, safe)
+
+    def test_unique_recipient_per_safe_with_declined_invite(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        service = InvitationService()
+        invitation = service.createInvitation(alice, bob, safe)
+        service.declineInvitation(invitation, bob)
+        invitation = service.createInvitation(alice, bob, safe)
+        self.assertEqual(invitation.status, InvitationStatus.Pending)
 
     def test_accept_invite(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')

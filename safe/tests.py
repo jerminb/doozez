@@ -176,7 +176,7 @@ class UsersManagersTests(TestCase):
             'action': 'DECLINE',
         }
         client = APIClient()
-        client.login(username='alice@user.com', password='foo')
+        client.login(username='bob@user.com', password='foo')
         response = client.patch(reverse('invitation-detail', args=[invitation.pk]),
                                 data=json.dumps(data),
                                 content_type='application/json')

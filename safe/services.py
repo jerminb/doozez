@@ -28,6 +28,12 @@ class InvitationService(object):
         if recipient.email == current_user.email:
             # sender can't be recipient
             raise ValidationError("recipient and sender can't be the same user")
+        existing = Invitation.objects.filter(Q(recipient=recipient) &
+                                             Q(safe=safe) &
+                                             ~Q(status=InvitationStatus.Declined)).all()
+        if len(existing) > 0:
+            # duplicate invitations not allowed
+            raise ValidationError("an existing invitation is found for user {} for safe {}", recipient, safe.pk)
         invitation = Invitation(sender=current_user, recipient=recipient, safe=safe)
         invitation.save()
         return invitation
@@ -49,7 +55,9 @@ class InvitationService(object):
         invitation.save()
         return invitation
 
-    def declineInvitation(self, invitation):
+    def declineInvitation(self, invitation, current_user):
+        if invitation.recipient != current_user:
+            raise ValidationError("only recipient can decline invite")
         if invitation.status != InvitationStatus.Pending and invitation.status != InvitationStatus.Declined:
             raise ValidationError("only pending or declined invitations can be declined")
         invitation.decline()
