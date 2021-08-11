@@ -44,6 +44,12 @@ class DoozezUser(AbstractUser):
         return self.email
 
 
+class Profile(TimeStampedModel):
+    user = models.OneToOneField(DoozezUser, on_delete=models.CASCADE)
+    phone = models.CharField(max_length=200, null=True)
+    profile_pic = models.ImageField(null=True, blank=True)
+
+
 class MandateStatus(models.TextChoices):
     PendingCustomerApproval = 'pending_customer_approval', _('pending_customer_approval')
     PendingSubmission = 'pending_submission', _('pending_submission')

@@ -17,7 +17,7 @@ from .permissions import IsOwner
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
     InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer, \
     ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer, JobSerializer
-from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod, DoozezJob
+from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod, DoozezJob, InvitationStatus
 from .services import InvitationService, SafeService, PaymentMethodService, ParticipationService
 
 
@@ -88,9 +88,11 @@ class SafeViewSet(OwnerViewSet):
     """
     API endpoint that allows safes to be viewed or edited.
     """
+
     def get_owner_filter(self):
         user = self.request.user
-        return Q(participations_safe__user=user) | Q(invitations_safe__recipient=user)
+        return Q(participations_safe__user=user) | \
+               (Q(invitations_safe__recipient=user) & ~Q(invitations_safe__status=InvitationStatus.Declined))
 
     def get_queryset(self):
         result = super().get_queryset().distinct()
@@ -121,6 +123,7 @@ class InvitationViewSet(OwnerViewSet):
     """
     API endpoint that allows safes to be viewed or edited.
     """
+
     def get_owner_filter(self):
         user = self.request.user
         return Q(recipient=user) | Q(sender=user)
@@ -236,7 +239,7 @@ class ParticipationViewSet(viewsets.ModelViewSet):
         if serializer.is_valid():
             options = {
                 Action.LEAVE: self.leave_participation,
-                       }
+            }
             try:
                 participation = options[serializer.validated_data['action']](serializer.validated_data['json_data'])
                 return Response(data=self.get_serializer_class()(participation, context={'request': request}).data,
@@ -314,4 +317,3 @@ class TokensViewSet(viewsets.ReadOnlyModelViewSet):
     def get_user_for_token(self, request, *args, **kwargs):
         return Response(data=UserSerializer(self.request.user, context={'request': request}).data,
                         status=status.HTTP_200_OK)
-

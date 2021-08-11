@@ -1,9 +1,6 @@
 import json
-from collections import namedtuple
-from unittest import mock
 
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 from rest_framework.reverse import reverse
 from rest_framework.test import APIClient
@@ -203,11 +200,12 @@ class UsersManagersTests(TestCase):
                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'PPT')
+        safe_id = response.data['id']
         response = client.get(reverse('participation-detail', args=[2]),
                               content_type='application/json')
         self.assertEqual(response.data['user']['email'], "alice@user.com")
         self.assertEqual(response.data['payment_method']['is_default'], True)
-        response = client.get(reverse('participation-list') + "?safe=1",
+        response = client.get(reverse('participation-list') + "?safe={}".format(safe_id),
                               content_type='application/json')
         self.assertEqual(response.data[1]['user']['email'], "alice@user.com")
 
@@ -231,6 +229,22 @@ class UsersManagersTests(TestCase):
         response = client.get(reverse('safe-list'),
                               content_type='application/json')
         self.assertEqual(len(response.data), 0)
+
+    def test_get_safe_for_declined_invitation(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        bob = User.objects.create_user(email='bob@user.com', password='foo')
+        Invitation.objects.create(status=InvitationStatus.Declined, sender=alice, recipient=bob,
+                                               safe=safealice)
+        client = APIClient()
+        client.login(username='bob@user.com', password='foo')
+        response = client.get(reverse('safe-list'),
+                              content_type='application/json')
+        self.assertEqual(len(response.data), 0)
+        response = client.get(reverse('safe-detail', args=[safealice.pk]),
+                              content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_retrieve_participation_for_other_user(self):
         User = get_user_model()
