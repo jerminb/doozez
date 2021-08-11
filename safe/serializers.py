@@ -72,7 +72,7 @@ class ActionPayloadSerializer(serializers.ModelSerializer):
 class PaymentMethodSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentMethod
-        fields = ['id', 'is_default']
+        fields = ['id', 'is_default', 'name']
 
 
 class PaymentMethodReadSerializer(serializers.ModelSerializer):
@@ -80,7 +80,7 @@ class PaymentMethodReadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PaymentMethod
-        fields = ['id', 'is_default', 'redirect_url', 'status']
+        fields = ['id', 'is_default', 'redirect_url', 'status', 'name']
 
 
 class ParticipationListSerializer(serializers.ModelSerializer):

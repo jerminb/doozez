@@ -98,6 +98,7 @@ class PaymentMethod(models.Model):
     user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
     is_default = models.BooleanField(default=False)
     mandate = models.ForeignKey(Mandate, on_delete=models.DO_NOTHING, null=True)
+    name = models.CharField(max_length=500, null=True, blank=True)
 
     @transition(field=status, source=[PaymentMethodStatus.PendingExternalApproval],
                 target=PaymentMethodStatus.ExternalApprovalSuccessful)
