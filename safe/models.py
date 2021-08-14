@@ -113,6 +113,8 @@ class PaymentMethod(models.Model):
 
 class SafeStatus(models.TextChoices):
     PendingParticipants = 'PPT', _('PendingParticipants')
+    Starting = 'STG', _('Starting')
+    Started = 'STD', _('Started')
     PendingDraw = 'PDR', _('PendingDraw')
     PendingEntryPayment = 'PEP', _('PendingEntryPayment')
     Active = 'ACT', _('Active')

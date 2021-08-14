@@ -3,9 +3,6 @@ from rest_framework import serializers
 from django.contrib.auth.models import Group
 from rest_auth.registration.serializers import RegisterSerializer
 
-from allauth.account.adapter import get_adapter
-from allauth.account.utils import setup_user_email
-
 from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation, PaymentMethod, DoozezJob, DoozezTask
 from .fields import NullableJSONField
 

@@ -74,6 +74,9 @@ class InvitationService(object):
         invitation.save()
         return invitation
 
+    def getPendingInvitationsForSafe(self, safe):
+        return Invitation.objects.filter(Q(status=InvitationStatus.Pending) & Q(safe=safe)).all()
+
 
 class MandateService(object):
     def __init__(self):
@@ -206,7 +209,9 @@ class ParticipationService(object):
         if participation.status != ParticipationStatus.Active:
             raise ValidationError("participation for pk {} is not Active".format(pk))
         if participation.safe.status != SafeStatus.PendingParticipants:
-            raise ValidationError("participation can not be cancelled for an active safe. current safe status is {}".format(participation.safe.status))
+            raise ValidationError(
+                "participation can not be cancelled for an active safe. current safe status is {}".format(
+                    participation.safe.status))
         participation.leaveActiveParticipation()
         participation.save()
         return participation
@@ -215,6 +220,7 @@ class ParticipationService(object):
 class SafeService(object):
     participation_service = ParticipationService()
     payment_method_service = PaymentMethodService()
+    invitation_service = InvitationService()
 
     def __init__(self):
         pass
@@ -234,6 +240,24 @@ class SafeService(object):
                                                        invitation=None)
         return safe
 
+    def startSafe(self, current_user, safe, force):
+        if safe.initiator != current_user:
+            raise ValidationError("safe {} can only be started by its initiator".format(safe.pk))
+        pending_invitations = self.getPendingInvitationsForSafe(safe)
+        if len(pending_invitations) > 0:
+            if not force:
+                raise ValidationError("safe {} has pending invitations".format(safe.pk))
+            else:
+                with transaction.atomic():
+                    removed_invitations = [self.invitation_service.removeInvitation(inv, current_user)
+                                           for inv in pending_invitations]
+                    for inv in removed_invitations:
+                        if not (inv.status == InvitationStatus.RemovedBySender):
+                            raise ValidationError(
+                                "safe {} to be in RemovedBySender status but it is {}".format(safe.pk, inv.status))
+                    safe.status = SafeStatus.Starting
+                    safe.save()
+
 
 class TaskService(object):
 
@@ -244,7 +268,8 @@ class TaskService(object):
         return DoozezTask.objects.select_for_update().filter(query)
 
     def getOrderedPendingTasksForJob(self, job_id):
-        return self.getTasksWithConcurrencyWithQ(Q(status=DoozezTaskStatus.Pending) & Q(job=job_id)).order_by('-sequence', '-created_on')
+        return self.getTasksWithConcurrencyWithQ(Q(status=DoozezTaskStatus.Pending) & Q(job=job_id)).order_by(
+            '-sequence', '-created_on')
 
     def getNextRunableTask(self, job_id):
         return self.getOrderedPendingTasksForJob(job_id).first()
