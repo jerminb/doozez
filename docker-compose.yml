@@ -35,3 +35,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  test:
+    image: doozez
+      command: python manage.py test
+    volumes:
+      - .:/code

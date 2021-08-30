@@ -10,9 +10,9 @@ from .decorators import clear, doozez_task
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
     MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, SafeStatus, \
-    ParticipationStatus
+    ParticipationStatus, Mandate, PaymentStatus
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
-    ParticipationService
+    ParticipationService, PaymentService
 
 
 class ServiceTest(TestCase):
@@ -244,6 +244,32 @@ class ServiceTest(TestCase):
         payment_methods = payment_method_service.getAllPaymentMethodsForUser(user=alice)
         self.assertEqual(payment_methods[0].status, PaymentMethodStatus.ExternalApprovalSuccessful)
         self.assertEqual(payment_methods[0].mandate.status, MandateStatus.PendingSubmission)
+
+    @mock.patch('safe.client_interfaces.PaymentGatewayClient')
+    def test_create_payment(self, mock_ci):
+        expected_dict = {
+            "id": "foo",
+        }
+        mock_ci.create_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
+            *expected_dict.values())
+        payment_service = PaymentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
+        payment_service.payment_gate_way_client = mock_ci
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        mandate = Mandate.objects.create(mandate_external_id="foo_mandate")
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=mandate)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice)
+        participation = Participation.objects.create(user=alice,
+                                                     safe=safe,
+                                                     user_role=ParticipantRole.Initiator,
+                                                     payment_method=payment_method)
+        payment = payment_service.createPayment(alice,
+                                                participation.pk,
+                                                10.0,
+                                                'GBP',
+                                                'description')
+        self.assertEqual(payment.status, PaymentStatus.PendingSubmission)
+        self.assertEqual(str(payment.amount), '£10.00')
 
     def test_task_service_run(self):
         clear()

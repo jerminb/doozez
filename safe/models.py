@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from djmoney.models.fields import MoneyField
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils.translation import ugettext_lazy as _
@@ -204,6 +205,38 @@ class Participation(models.Model):
                 target=ParticipationStatus.Left)
     def leaveActiveParticipation(self):
         pass
+
+
+class PaymentStatus(models.TextChoices):
+    PendingSubmission = 'pending_submission', _('PendingSubmission')
+    Submitted = 'submitted', _('Submitted')
+    Confirmed = 'confirmed', _('Confirmed')
+    Failed = 'failed', _('Failed')
+    Cancelled = 'cancelled', _('Cancelled')
+    CustomerApprovalDenied = 'customer_approval_denied', _('CustomerApprovalDenied')
+    ChargedBack = 'charged_back', _('ChargedBack')
+
+
+class Payment(TimeStampedModel):
+    status = FSMField(
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PendingSubmission,
+        protected=True,
+    )
+    participation = models.ForeignKey(
+        Participation,
+        on_delete=models.CASCADE,
+        related_name='payments_participation',
+        null=True)
+    amount = MoneyField(
+        decimal_places=2,
+        default=0,
+        default_currency='GBP',
+        max_digits=11,
+    )
+    charge_date = models.DateTimeField(null=True, blank=True)
+    description = models.TextField()
+    external_id = models.TextField(null=True, blank=True)
 
 
 class GCFlow(models.Model):

@@ -3,7 +3,8 @@ from rest_framework import serializers
 from django.contrib.auth.models import Group
 from rest_auth.registration.serializers import RegisterSerializer
 
-from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation, PaymentMethod, DoozezJob, DoozezTask
+from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation, PaymentMethod, DoozezJob, DoozezTask, \
+    Payment
 from .fields import NullableJSONField
 
 
@@ -101,6 +102,14 @@ class ParticipationRetrieveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Participation
         fields = ['id', 'user_role', 'status', 'user', 'safe', 'payment_method', 'win_sequence']
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    payment_method = PaymentMethodSerializer()
+
+    class Meta:
+        model = Payment
+        fields = ['id', 'amount', 'charge_date', 'description', 'payment_method']
 
 
 class TaskSerializer(serializers.ModelSerializer):

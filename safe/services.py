@@ -2,10 +2,12 @@ import json
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from djmoney.money import Money
 
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, \
-    ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus
+    ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus,\
+    Payment
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -172,6 +174,9 @@ class ParticipationService(object):
     def __init__(self):
         pass
 
+    def getParticipationWithId(self, participation_id):
+        return Participation.objects.get(pk=participation_id)
+
     def getParticipationWithQ(self, query):
         return Participation.objects.filter(query)
 
@@ -215,6 +220,30 @@ class ParticipationService(object):
         participation.leaveActiveParticipation()
         participation.save()
         return participation
+
+
+class PaymentService(object):
+    participation_service = ParticipationService()
+
+    def __init__(self, access_token=None, environment=None):
+        if access_token is None or environment is None:
+            self.payment_gate_way_client = None
+        else:
+            self.payment_gate_way_client = PaymentGatewayClient(access_token, environment)
+
+    def createPayment(self, user, participation_id, amount, currency, description):
+        participation = self.participation_service.getParticipationWithId(participation_id)
+        if participation is None:
+            raise ValidationError("participation not found for {}".format(str(participation_id)))
+        external_payment = self.payment_gate_way_client.create_payment(
+            participation.payment_method.mandate.mandate_external_id,
+            amount,
+            currency)
+        payment = Payment.objects.create(participation=participation,
+                                         amount=Money(amount, currency),
+                                         description=description,
+                                         external_id=external_payment.id)
+        return payment
 
 
 class SafeService(object):
