@@ -288,7 +288,7 @@ class DoozezTaskStatus(models.TextChoices):
 
 class DoozezTaskType(models.TextChoices):
     Draw = 'DRW', _('Draw')
-    WithdrawFirstPayment = 'WFP', _('WithdrawFirstPayment')
+    CreatePayment = 'CTP', _('CreatePayment')
     CreateInstallments = 'CRI', _('CreateInstallments')
     CompleteSafeStart = 'CSS', _('CompleteSafeStart')
 

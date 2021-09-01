@@ -4,13 +4,12 @@ from collections import namedtuple
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db.utils import IntegrityError
 from unittest import mock
 from .decorators import clear, doozez_task
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
     MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, SafeStatus, \
-    ParticipationStatus, Mandate, PaymentStatus
+    ParticipationStatus, Mandate, PaymentStatus, Invitation
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
     ParticipationService, PaymentService
 
@@ -263,13 +262,45 @@ class ServiceTest(TestCase):
                                                      safe=safe,
                                                      user_role=ParticipantRole.Initiator,
                                                      payment_method=payment_method)
-        payment = payment_service.createPayment(alice,
-                                                participation.pk,
+        payment = payment_service.createPayment(participation.pk,
                                                 10.0,
                                                 'GBP',
                                                 'description')
         self.assertEqual(payment.status, PaymentStatus.PendingSubmission)
         self.assertEqual(str(payment.amount), '£10.00')
+
+    def test_safe_start(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice)
+        Participation.objects.create(user=alice,
+                                     safe=safe,
+                                     user_role=ParticipantRole.Initiator,
+                                     payment_method=payment_method)
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        PaymentMethod.objects.create(user=bob, is_default=True)
+        service = InvitationService()
+        invitation = service.createInvitation(alice, bob, safe)
+        safe_service = SafeService()
+        safe = safe_service.startSafe(alice, safe, True)
+        self.assertEqual(safe.status, SafeStatus.Starting)
+        invitation = Invitation.objects.get(pk=invitation.pk)
+        self.assertEqual(invitation.status, InvitationStatus.RemovedBySender)
+
+    def test_safe_start_with_non_initiator_user(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice)
+        Participation.objects.create(user=alice,
+                                     safe=safe,
+                                     user_role=ParticipantRole.Initiator,
+                                     payment_method=payment_method)
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        safe_service = SafeService()
+        with self.assertRaises(ValidationError):
+            safe_service.startSafe(bob, safe, True)
 
     def test_task_service_run(self):
         clear()

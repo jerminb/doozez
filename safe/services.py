@@ -231,7 +231,7 @@ class PaymentService(object):
         else:
             self.payment_gate_way_client = PaymentGatewayClient(access_token, environment)
 
-    def createPayment(self, user, participation_id, amount, currency, description):
+    def createPayment(self, participation_id, amount, currency, description):
         participation = self.participation_service.getParticipationWithId(participation_id)
         if participation is None:
             raise ValidationError("participation not found for {}".format(str(participation_id)))
@@ -269,23 +269,34 @@ class SafeService(object):
                                                        invitation=None)
         return safe
 
-    def startSafe(self, current_user, safe, force):
+    def validateSafeForStart(self, current_user, safe, force):
         if safe.initiator != current_user:
-            raise ValidationError("safe {} can only be started by its initiator".format(safe.pk))
-        pending_invitations = self.getPendingInvitationsForSafe(safe)
+            return ValidationError("safe {} can only be started by its initiator".format(safe.pk))
+        pending_invitations = self.invitation_service.getPendingInvitationsForSafe(safe)
         if len(pending_invitations) > 0:
             if not force:
-                raise ValidationError("safe {} has pending invitations".format(safe.pk))
-            else:
-                with transaction.atomic():
-                    removed_invitations = [self.invitation_service.removeInvitation(inv, current_user)
-                                           for inv in pending_invitations]
-                    for inv in removed_invitations:
-                        if not (inv.status == InvitationStatus.RemovedBySender):
-                            raise ValidationError(
-                                "safe {} to be in RemovedBySender status but it is {}".format(safe.pk, inv.status))
-                    safe.status = SafeStatus.Starting
-                    safe.save()
+                return ValidationError("safe {} has pending invitations".format(safe.pk))
+        return None
+
+    def removePendingInvitations(self, current_user, safe):
+        pending_invitations = self.invitation_service.getPendingInvitationsForSafe(safe)
+        with transaction.atomic():
+            removed_invitations = [self.invitation_service.removeInvitation(inv, current_user)
+                                   for inv in pending_invitations]
+            for inv in removed_invitations:
+                if not (inv.status == InvitationStatus.RemovedBySender):
+                    raise ValidationError(
+                        "safe {} to be in RemovedBySender status but it is {}".format(safe.pk, inv.status))
+
+    def startSafe(self, current_user, safe, force):
+        validation_error = self.validateSafeForStart(current_user, safe, force)
+        if validation_error is not None:
+            raise validation_error
+        if force:
+            self.removePendingInvitations(current_user, safe)
+        safe.status = SafeStatus.Starting
+        safe.save()
+        return safe
 
 
 class TaskService(object):
