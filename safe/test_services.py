@@ -11,7 +11,7 @@ from .models import Safe, PaymentMethod, InvitationStatus, Participation, Partic
     MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, SafeStatus, \
     ParticipationStatus, Mandate, PaymentStatus, Invitation
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
-    ParticipationService, PaymentService
+    ParticipationService, PaymentService, TaskPlanner
 
 
 class ServiceTest(TestCase):
@@ -336,7 +336,7 @@ class ServiceTest(TestCase):
                                   parameters='{"sequence":5}', job=job, sequence=5)
         service = TaskService()
         result = service.runNextRunnableTask(job.pk)
-        self.assertEqual(result, 15)
+        self.assertEqual(result, 5)
 
     def test_task_duplicate_sequence(self):
         clear()
@@ -356,3 +356,39 @@ class ServiceTest(TestCase):
         service = TaskService()
         result = service.runNextRunnableTask(job.pk)
         self.assertEqual(result, 0.3)
+
+    def test_task_service_create_task(self):
+        clear()
+
+        @doozez_task(type=DoozezTaskType.Draw)
+        def test_draw(sequence):
+            return sequence
+
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        service = TaskService()
+        task = service.createTaskForJob(DoozezTaskType.Draw, '{"sequence":0.1}', 15, job)
+        result = DoozezTask.objects.get(pk=task.pk)
+        self.assertEqual(result.parameters, '{"sequence":0.1}')
+
+    def test_task_planner_start_safe_tasks(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        bob_payment_method = PaymentMethod.objects.create(user=bob, is_default=True)
+        safe_service = SafeService()
+        safe = safe_service.createSafe(alice, 'safebar', 10, payment_method.pk)
+        participation = Participation.objects.create(user=bob,
+                                                     safe=safe,
+                                                     user_role=ParticipantRole.Participant,
+                                                     payment_method=bob_payment_method)
+        job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        planner = TaskPlanner()
+        result = planner.createTasksForStartSafe(safe, job)
+        self.assertEqual(len(result), 4)
+        task = DoozezTask.objects.get(pk=result[2].pk)
+        self.assertEqual(task.task_type, DoozezTaskType.CreatePayment)
+        self.assertEqual(task.sequence, 2)
+        self.assertEqual(
+            task.parameters,
+            '{{"participation_id":"{}", "amount":"10", "currency":"GBP"}}'.format(participation.pk))

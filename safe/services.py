@@ -6,8 +6,8 @@ from djmoney.money import Money
 
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, \
-    ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus,\
-    Payment
+    ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
+    Payment, DoozezTaskType, DoozezJob, DoozezJobType
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -246,13 +246,90 @@ class PaymentService(object):
         return payment
 
 
+class TaskService(object):
+
+    def __init__(self):
+        pass
+
+    def createTaskForJob(self, task_type, parameters, sequence, job):
+        return DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=task_type,
+                                         parameters=parameters, job=job, sequence=sequence)
+
+    def getTasksWithConcurrencyWithQ(self, query):
+        return DoozezTask.objects.select_for_update().filter(query)
+
+    def getOrderedPendingTasksForJob(self, job_id):
+        return self.getTasksWithConcurrencyWithQ(Q(status=DoozezTaskStatus.Pending) & Q(job=job_id)).order_by(
+            'sequence', '-created_on')
+
+    def getNextRunableTask(self, job_id):
+        return self.getOrderedPendingTasksForJob(job_id).first()
+
+    def runNextRunnableTask(self, job_id):
+        task = None
+        with transaction.atomic():
+            task = self.getNextRunableTask(job_id)
+            if task is None:
+                return
+            task.startRunning()
+            task.save()
+        return run(task.task_type, **json.loads(task.parameters))
+
+
+class JobService(object):
+
+    def __init__(self):
+        pass
+
+    def createJob(self, job_type, user):
+        return DoozezJob.objects.create(job_type=job_type, user=user)
+
+
+class TaskPlanner(object):
+    task_service = TaskService()
+    job_service = JobService()
+
+    def __init__(self):
+        pass
+
+    def createTasksForStartSafe(self, safe, job, currency='GBP'):
+        participations = safe.participations_safe.all()
+        tasks = []
+        task_count = 0
+        for i in range(len(participations)):
+            participation = participations[i]
+            parameters = '{{"participation_id":"{}", "amount":"{}", "currency":"{}"}}'. \
+                format(participation.pk, safe.monthly_payment, currency)
+            tasks.append(self.task_service.createTaskForJob(
+                DoozezTaskType.CreatePayment,
+                parameters,
+                i,
+                job))
+            task_count = i
+        task_count += 1
+        tasks.append(self.task_service.createTaskForJob(
+            DoozezTaskType.Draw,
+            '{{"safe_id":{}}}'.format(str(safe.pk)),
+            task_count,
+            job))
+        return tasks
+
+    def createJobForStartSafe(self, safe, current_user):
+        job = self.job_service.createJob(DoozezJobType.StartSafe, current_user)
+        return self.createTasksForStartSafe(safe, job)
+
+
 class SafeService(object):
     participation_service = ParticipationService()
     payment_method_service = PaymentMethodService()
     invitation_service = InvitationService()
+    task_planner = TaskPlanner()
 
     def __init__(self):
         pass
+
+    def getSafeWithId(self, safe_id):
+        return Safe.objects.get(pk=safe_id)
 
     def createSafe(self, current_user, name, monthly_payment, payment_method_id):
         payment_method = self.payment_method_service.getAllPaymentMethodsForUser(current_user) \
@@ -294,32 +371,7 @@ class SafeService(object):
             raise validation_error
         if force:
             self.removePendingInvitations(current_user, safe)
+        self.task_planner.createJobForStartSafe(safe, current_user)
         safe.status = SafeStatus.Starting
         safe.save()
         return safe
-
-
-class TaskService(object):
-
-    def __init__(self):
-        pass
-
-    def getTasksWithConcurrencyWithQ(self, query):
-        return DoozezTask.objects.select_for_update().filter(query)
-
-    def getOrderedPendingTasksForJob(self, job_id):
-        return self.getTasksWithConcurrencyWithQ(Q(status=DoozezTaskStatus.Pending) & Q(job=job_id)).order_by(
-            '-sequence', '-created_on')
-
-    def getNextRunableTask(self, job_id):
-        return self.getOrderedPendingTasksForJob(job_id).first()
-
-    def runNextRunnableTask(self, job_id):
-        task = None
-        with transaction.atomic():
-            task = self.getNextRunableTask(job_id)
-            if task is None:
-                return
-            task.startRunning()
-            task.save()
-        return run(task.task_type, **json.loads(task.parameters))
