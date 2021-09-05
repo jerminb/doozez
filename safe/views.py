@@ -121,7 +121,7 @@ class SafeViewSet(OwnerViewSet):
     def start_safe(self, json_data):
         service = SafeService()
         safe = self.get_object()
-        force = self.get_value_from_json(json_data)
+        force = self.get_value_from_json(json_data, 'force')
         if force is None:
             force = True
         return service.startSafe(self.request.user, safe, force)
