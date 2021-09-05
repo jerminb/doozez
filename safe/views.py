@@ -311,6 +311,7 @@ class PaymentMethodViewSet(OwnerViewSet):
         if serializer.is_valid():
             payment_method = service.createPaymentMethodForUser(user,
                                                                 serializer.validated_data['is_default'],
+                                                                serializer.validated_data['name'],
                                                                 "Doozez",
                                                                 str(uuid.uuid4()),
                                                                 "https://developer.gocardless.com/example-redirect-uri/")

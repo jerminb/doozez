@@ -192,13 +192,13 @@ class ServiceTest(TestCase):
         mock_gc.create.return_value = namedtuple("RedirectFlow", expected_dict.keys())(*expected_dict.values())
         payment_method_service = PaymentMethodService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
-        pm1 = payment_method_service.createPaymentMethodForUser(user=alice, is_default=False,
+        pm1 = payment_method_service.createPaymentMethodForUser(user=alice, is_default=False, name="foopm",
                                                                 pgw_description="desc", pgw_session_token="token",
                                                                 pgw_success_redirect_url="url")
         self.assertEqual(pm1.is_default, True)
         self.assertEqual(pm1.gcflow.flow_id, 'foo')
         self.assertEqual(pm1.gcflow.flow_redirect_url, 'bar')
-        pm2 = payment_method_service.createPaymentMethodForUser(user=alice, is_default=True,
+        pm2 = payment_method_service.createPaymentMethodForUser(user=alice, is_default=True, name="foopm",
                                                                 pgw_description="desc", pgw_session_token="token",
                                                                 pgw_success_redirect_url="url")
         self.assertEqual(pm2.is_default, True)
@@ -236,7 +236,7 @@ class ServiceTest(TestCase):
             *expected_mandate_dict.values())
         payment_method_service = PaymentMethodService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
-        payment_method_service.createPaymentMethodForUser(user=alice, is_default=False,
+        payment_method_service.createPaymentMethodForUser(user=alice, is_default=False, name="foopm",
                                                           pgw_description="desc", pgw_session_token="token",
                                                           pgw_success_redirect_url="url")
         payment_method_service.approveWithExternalSuccessWithFlowId(flow_id="foo")
@@ -283,7 +283,9 @@ class ServiceTest(TestCase):
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
         safe_service = SafeService()
-        safe = safe_service.startSafe(alice, safe, True)
+        job = safe_service.startSafe(alice, safe, True)
+        self.assertEqual(job.status, DoozezJobStatus.Created)
+        safe = Safe.objects.get(pk=safe.pk)
         self.assertEqual(safe.status, SafeStatus.Starting)
         invitation = Invitation.objects.get(pk=invitation.pk)
         self.assertEqual(invitation.status, InvitationStatus.RemovedBySender)

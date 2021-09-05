@@ -113,24 +113,24 @@ class PaymentMethodService(object):
     def getDefaultPaymentMethodForUser(self, user):
         return self.getPaymentMethodsWithQ(Q(user=user) & Q(is_default=True)).first()
 
-    def createPaymentMethod(self, user, is_default, pgw_description, pgw_session_token, pgw_success_redirect_url):
+    def createPaymentMethod(self, user, is_default, name, pgw_description, pgw_session_token, pgw_success_redirect_url):
         if self.payment_gate_way_client is None:
             raise AttributeError("payment gateway client is not initialized")
         redirect_flow = self.payment_gate_way_client.create_approval_flow(pgw_description, pgw_session_token,
                                                                           pgw_success_redirect_url, user)
-        payment_method = PaymentMethod.objects.create(user=user, is_default=is_default)
+        payment_method = PaymentMethod.objects.create(user=user, is_default=is_default, name=name)
         GCFlow.objects.create(flow_id=redirect_flow.redirect_id,
                               flow_redirect_url=redirect_flow.redirect_url,
                               session_token=pgw_session_token,
                               payment_method=payment_method)
         return payment_method
 
-    def createPaymentMethodForUser(self, user, is_default, pgw_description, pgw_session_token,
+    def createPaymentMethodForUser(self, user, is_default, name, pgw_description, pgw_session_token,
                                    pgw_success_redirect_url):
         all = self.getAllPaymentMethodsForUser(user)
         if len(all) == 0:
             # first payment method is always default
-            return self.createPaymentMethod(user=user, is_default=True,
+            return self.createPaymentMethod(user=user, is_default=True, name=name,
                                             pgw_description=pgw_description,
                                             pgw_session_token=pgw_session_token,
                                             pgw_success_redirect_url=pgw_success_redirect_url)
@@ -142,7 +142,7 @@ class PaymentMethodService(object):
             else:
                 default.is_default = False
                 default.save()
-            return self.createPaymentMethod(user=user, is_default=temp_is_default,
+            return self.createPaymentMethod(user=user, is_default=temp_is_default, name=name,
                                             pgw_description=pgw_description,
                                             pgw_session_token=pgw_session_token,
                                             pgw_success_redirect_url=pgw_success_redirect_url)
