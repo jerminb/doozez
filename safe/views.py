@@ -114,6 +114,35 @@ class SafeViewSet(OwnerViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def get_value_from_json(self, json_data, key):
+        extra_data = json.loads(json_data)
+        return extra_data.get(key, None)
+
+    def start_safe(self, json_data):
+        service = SafeService()
+        safe = self.get_object()
+        force = self.get_value_from_json(json_data)
+        if force is None:
+            force = True
+        return service.startSafe(self.request.user, safe, force)
+
+    def partial_update(self, request, *args, **kwargs):
+        serializer = ActionPayloadSerializer(data=request.data)
+        if serializer.is_valid():
+            options = {
+                Action.START: self.start_safe,
+            }
+            try:
+                job = options[serializer.validated_data['action']](serializer.validated_data['json_data'])
+                return Response(data=JobSerializer()(job, context={'request': request}).data,
+                                status=status.HTTP_200_OK)
+            except TypeError as exp:
+                return Response(repr(exp), status=status.HTTP_400_BAD_REQUEST)
+            except ValidationError as exp:
+                return Response(repr(exp), status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     queryset = Safe.objects.all().order_by('id')
     serializer_class = SafeSerializer
     permission_classes = [permissions.IsAuthenticated]

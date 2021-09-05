@@ -316,7 +316,8 @@ class TaskPlanner(object):
 
     def createJobForStartSafe(self, safe, current_user):
         job = self.job_service.createJob(DoozezJobType.StartSafe, current_user)
-        return self.createTasksForStartSafe(safe, job)
+        self.createTasksForStartSafe(safe, job)
+        return job
 
 
 class SafeService(object):
@@ -371,7 +372,7 @@ class SafeService(object):
             raise validation_error
         if force:
             self.removePendingInvitations(current_user, safe)
-        self.task_planner.createJobForStartSafe(safe, current_user)
+        job = self.task_planner.createJobForStartSafe(safe, current_user)
         safe.status = SafeStatus.Starting
         safe.save()
-        return safe
+        return job

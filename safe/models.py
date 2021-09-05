@@ -22,6 +22,7 @@ class Action(models.TextChoices):
     DECLINE = 'DECLINE', _('Decline')
     REMOVE = 'REMOVE', _('Remove')
     LEAVE = 'LEAVE', _('Leave')
+    START = 'START', _('Start')
 
 
 class ActionPayload(models.Model):
