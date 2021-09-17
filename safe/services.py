@@ -374,5 +374,6 @@ class SafeService(object):
             self.removePendingInvitations(current_user, safe)
         job = self.task_planner.createJobForStartSafe(safe, current_user)
         safe.status = SafeStatus.Starting
+        safe.job = job
         safe.save()
-        return job
+        return safe

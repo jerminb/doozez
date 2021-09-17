@@ -52,6 +52,79 @@ class Profile(TimeStampedModel):
     profile_pic = models.ImageField(null=True, blank=True)
 
 
+
+
+class DoozezJobStatus(models.TextChoices):
+    Created = 'CRT', _('Created')
+    Successful = 'SUC', _('Success')
+    Failed = 'FLD', _('Failed')
+
+
+class DoozezJobType(models.TextChoices):
+    StartSafe = 'SSF', _('StartSafe')
+
+
+class DoozezJob(TimeStampedModel):
+    status = FSMField(
+        choices=DoozezJobStatus.choices,
+        default=DoozezJobStatus.Created,
+        protected=True,
+    )
+    job_type = models.CharField(
+        max_length=3,
+        choices=DoozezJobType.choices
+    )
+    user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
+
+    @transition(field=status, source=[DoozezJobStatus.Created],
+                target=DoozezJobStatus.Successful)
+    def finishSuccessfully(self):
+        pass
+
+    @transition(field=status, source=[DoozezJobStatus.Created],
+                target=DoozezJobStatus.Failed)
+    def finishWithFailure(self):
+        pass
+
+
+class DoozezTaskStatus(models.TextChoices):
+    Pending = 'PND', _('Pending')
+    Running = 'RUN', _('Running')
+    Successful = 'SUC', _('Success')
+    Failed = 'FLD', _('Failed')
+
+
+class DoozezTaskType(models.TextChoices):
+    Draw = 'DRW', _('Draw')
+    CreatePayment = 'CTP', _('CreatePayment')
+    CreateInstallments = 'CRI', _('CreateInstallments')
+    CompleteSafeStart = 'CSS', _('CompleteSafeStart')
+
+
+class DoozezTask(TimeStampedModel):
+    status = FSMField(
+        choices=DoozezTaskStatus.choices,
+        default=DoozezTaskStatus.Pending,
+        protected=True,
+    )
+    task_type = models.CharField(
+        max_length=3,
+        choices=DoozezTaskType.choices
+    )
+    parameters = JSONField(null=True)
+    exceptions = JSONField(null=True)
+    job = models.ForeignKey(DoozezJob, on_delete=models.CASCADE, related_name='jobs_tasks', null=True)
+    sequence = models.PositiveIntegerField(default=0)
+
+    @transition(field=status, source=[DoozezTaskStatus.Pending],
+                target=DoozezTaskStatus.Running)
+    def startRunning(self):
+        pass
+
+    def __str__(self):
+        return '%d, %s: status: %s, exceptions: %s' % (self.id, self.get_task_type_display(), self.get_status_display(), self.exceptions)
+
+
 class MandateStatus(models.TextChoices):
     PendingCustomerApproval = 'pending_customer_approval', _('pending_customer_approval')
     PendingSubmission = 'pending_submission', _('pending_submission')
@@ -133,6 +206,7 @@ class Safe(models.Model):
     monthly_payment = models.FloatField(validators=[MinValueValidator(0.0), ], default=0)
     total_participants = models.PositiveIntegerField(default=0)
     initiator = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='initiator', null=True)
+    job = models.ForeignKey(DoozezJob, on_delete=models.DO_NOTHING, null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -245,75 +319,4 @@ class GCFlow(models.Model):
     flow_redirect_url = models.TextField(null=True)
     session_token = models.TextField()
     payment_method = models.OneToOneField(PaymentMethod, on_delete=models.CASCADE)
-
-
-class DoozezJobStatus(models.TextChoices):
-    Created = 'CRT', _('Created')
-    Successful = 'SUC', _('Success')
-    Failed = 'FLD', _('Failed')
-
-
-class DoozezJobType(models.TextChoices):
-    StartSafe = 'SSF', _('StartSafe')
-
-
-class DoozezJob(TimeStampedModel):
-    status = FSMField(
-        choices=DoozezJobStatus.choices,
-        default=DoozezJobStatus.Created,
-        protected=True,
-    )
-    job_type = models.CharField(
-        max_length=3,
-        choices=DoozezJobType.choices
-    )
-    user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
-
-    @transition(field=status, source=[DoozezJobStatus.Created],
-                target=DoozezJobStatus.Successful)
-    def finishSuccessfully(self):
-        pass
-
-    @transition(field=status, source=[DoozezJobStatus.Created],
-                target=DoozezJobStatus.Failed)
-    def finishWithFailure(self):
-        pass
-
-
-class DoozezTaskStatus(models.TextChoices):
-    Pending = 'PND', _('Pending')
-    Running = 'RUN', _('Running')
-    Successful = 'SUC', _('Success')
-    Failed = 'FLD', _('Failed')
-
-
-class DoozezTaskType(models.TextChoices):
-    Draw = 'DRW', _('Draw')
-    CreatePayment = 'CTP', _('CreatePayment')
-    CreateInstallments = 'CRI', _('CreateInstallments')
-    CompleteSafeStart = 'CSS', _('CompleteSafeStart')
-
-
-class DoozezTask(TimeStampedModel):
-    status = FSMField(
-        choices=DoozezTaskStatus.choices,
-        default=DoozezTaskStatus.Pending,
-        protected=True,
-    )
-    task_type = models.CharField(
-        max_length=3,
-        choices=DoozezTaskType.choices
-    )
-    parameters = JSONField(null=True)
-    exceptions = JSONField(null=True)
-    job = models.ForeignKey(DoozezJob, on_delete=models.CASCADE, related_name='jobs_tasks', null=True)
-    sequence = models.PositiveIntegerField(default=0)
-
-    @transition(field=status, source=[DoozezTaskStatus.Pending],
-                target=DoozezTaskStatus.Running)
-    def startRunning(self):
-        pass
-
-    def __str__(self):
-        return '%d, %s: status: %s, exceptions: %s' % (self.id, self.get_task_type_display(), self.get_status_display(), self.exceptions)
 
