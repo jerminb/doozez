@@ -159,6 +159,15 @@ ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = '/?verification=1'
 
 SITE_ID = 1
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_USE_TLS = True
+# EMAIL_PORT = 587
+# EMAIL_HOST_USER = 'jrmnbzzn@gmail.com'
+# EMAIL_HOST_PASSWORD = ''
+# EMAIL_FROM = 'jerminb@doozez.co.uk'
+# DEFAULT_FROM_EMAIL = 'jerminb@doozez.co.uk'
+
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
