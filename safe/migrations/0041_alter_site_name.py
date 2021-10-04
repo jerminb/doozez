@@ -5,7 +5,10 @@ def setup_default_site(apps, schema_editor):
     """
     Set up or rename the default example.com site created by Django.
     """
-    Site = apps.get_model("sites", "Site")
+    try:
+        Site = apps.get_model("sites", "Site")
+    except:
+        return
 
     name = "Doozez.co.uk"
     domain = "doozez.co.uk"

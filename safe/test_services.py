@@ -11,7 +11,7 @@ from .models import Safe, PaymentMethod, InvitationStatus, Participation, Partic
     MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, SafeStatus, \
     ParticipationStatus, Mandate, PaymentStatus, Invitation
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
-    ParticipationService, PaymentService, TaskPlanner
+    ParticipationService, PaymentService, TaskPlanner, JobService, JobExecutor
 
 
 class ServiceTest(TestCase):
@@ -318,7 +318,25 @@ class ServiceTest(TestCase):
         result = service.runNextRunnableTask(job.pk)
         self.assertEqual(result, 1)
         task = DoozezTask.objects.get(pk=1)
-        self.assertEqual(task.status, DoozezTaskStatus.Running)
+        self.assertEqual(task.status, DoozezTaskStatus.Successful)
+
+    def test_task_service_run_with_failure(self):
+        clear()
+
+        @doozez_task(type=DoozezTaskType.Draw)
+        def test_draw(safe_id):
+            raise Exception('foo fail')
+
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"safe_id":1}', job=job, sequence=0)
+        service = TaskService()
+        with self.assertRaises(Exception):
+            service.runNextRunnableTask(job.pk)
+            task = DoozezTask.objects.get(pk=1)
+            self.assertEqual(task.status, DoozezTaskStatus.Failed)
+            self.assertIn('foo fail', task.exceptions)
 
     def test_task_sequence(self):
         clear()
@@ -357,6 +375,33 @@ class ServiceTest(TestCase):
         service = TaskService()
         result = service.runNextRunnableTask(job.pk)
         self.assertEqual(result, 0.3)
+
+    def test_job_service_run(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        jobfoo = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        jobbar = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        service = JobService()
+        service.runNextRunnableJob()
+        post_jobbar = DoozezJob.objects.get(pk=jobbar.pk)
+        self.assertEqual(post_jobbar.status, DoozezJobStatus.Running)
+        post_jobfoo = DoozezJob.objects.get(pk=jobfoo.pk)
+        self.assertEqual(post_jobfoo.status, DoozezJobStatus.Created)
+
+    def test_job_executor_execute(self):
+        clear()
+
+        @doozez_task(type=DoozezTaskType.Draw)
+        def test_draw(safe_id):
+            raise Exception('foo fail')
+
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
+        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                  parameters='{"safe_id":1}', job=job, sequence=0)
+        executor = JobExecutor()
+        executor.executeNextRunnableJob()
+        job = DoozezJob.objects.get(pk=job.pk)
+        self.assertEqual(job.status, DoozezJobStatus.Failed)
 
     def test_task_service_create_task(self):
         clear()

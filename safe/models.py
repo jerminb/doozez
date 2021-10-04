@@ -56,6 +56,7 @@ class Profile(TimeStampedModel):
 
 class DoozezJobStatus(models.TextChoices):
     Created = 'CRT', _('Created')
+    Running = 'RNG', _('Running')
     Successful = 'SUC', _('Success')
     Failed = 'FLD', _('Failed')
 
@@ -77,11 +78,16 @@ class DoozezJob(TimeStampedModel):
     user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
 
     @transition(field=status, source=[DoozezJobStatus.Created],
+                target=DoozezJobStatus.Running)
+    def startRunning(self):
+        pass
+
+    @transition(field=status, source=[DoozezJobStatus.Running],
                 target=DoozezJobStatus.Successful)
     def finishSuccessfully(self):
         pass
 
-    @transition(field=status, source=[DoozezJobStatus.Created],
+    @transition(field=status, source=[DoozezJobStatus.Running],
                 target=DoozezJobStatus.Failed)
     def finishWithFailure(self):
         pass
@@ -119,6 +125,16 @@ class DoozezTask(TimeStampedModel):
     @transition(field=status, source=[DoozezTaskStatus.Pending],
                 target=DoozezTaskStatus.Running)
     def startRunning(self):
+        pass
+
+    @transition(field=status, source=[DoozezTaskStatus.Running],
+                target=DoozezTaskStatus.Successful)
+    def finishSuccessfully(self):
+        pass
+
+    @transition(field=status, source=[DoozezTaskStatus.Running],
+                target=DoozezTaskStatus.Failed)
+    def finishWithFailure(self):
         pass
 
     def __str__(self):

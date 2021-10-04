@@ -1,4 +1,5 @@
 import json
+import sys
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -7,11 +8,13 @@ from djmoney.money import Money
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, \
     ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
-    Payment, DoozezTaskType, DoozezJob, DoozezJobType
+    Payment, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus
 from .decorators import run
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+
+from .utils import exception_as_dict
 
 
 class UserService(object):
@@ -273,7 +276,17 @@ class TaskService(object):
                 return
             task.startRunning()
             task.save()
-        return run(task.task_type, **json.loads(task.parameters))
+        try:
+            result = run(task.task_type, **json.loads(task.parameters))
+            task.finishSuccessfully()
+            task.save()
+            return result
+        except Exception as ex:
+            err = sys.exc_info()
+            task.exceptions = json.dumps(exception_as_dict(ex, err))
+            task.finishWithFailure()
+            task.save()
+            raise ex
 
 
 class JobService(object):
@@ -283,6 +296,60 @@ class JobService(object):
 
     def createJob(self, job_type, user):
         return DoozezJob.objects.create(job_type=job_type, user=user)
+
+    def getJobsWithConcurrencyWithQ(self, query):
+        return DoozezJob.objects.select_for_update().filter(query)
+
+    def getOrderedPendingJobs(self):
+        return self.getJobsWithConcurrencyWithQ(Q(status=DoozezJobStatus.Created)
+                                                or Q(status=DoozezJobStatus.Running)).order_by('-created_on')
+
+    def getNextRunableTask(self):
+        return self.getOrderedPendingJobs().first()
+
+    def runNextRunnableJob(self):
+        job = None
+        with transaction.atomic():
+            job = self.getNextRunableTask()
+            if job is None:
+                return
+            job.startRunning()
+            job.save()
+        return job
+
+    def finishJobSuccefully(self, job_id):
+        with transaction.atomic():
+            job = self.getJobsWithConcurrencyWithQ(Q(pk=job_id)).first()
+            job.finishSuccessfully()
+            job.save()
+
+    def finishJobWithFailure(self, job_id):
+        with transaction.atomic():
+            job = self.getJobsWithConcurrencyWithQ(Q(pk=job_id)).first()
+            job.finishWithFailure()
+            job.save()
+
+
+class JobExecutor(object):
+    task_service = TaskService()
+    job_service = JobService()
+
+    def __init__(self):
+        pass
+
+    def executeNextRunnableJob(self):
+        job = self.job_service.runNextRunnableJob()
+        if job is None:
+            return
+        try:
+            task = self.task_service.getNextRunableTask(job.pk)
+            if task is None:
+                self.job_service.finishJobSuccefully(job.pk)
+                return
+            self.task_service.runNextRunnableTask(job.pk)
+        except:
+            self.job_service.finishJobWithFailure(job.pk)
+        return
 
 
 class TaskPlanner(object):

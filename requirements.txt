@@ -26,3 +26,4 @@ sqlparse==0.4.1
 urllib3==1.26.6
 psycopg2-binary>=2.8
 django-money==2.0.1
+django_apscheduler==0.6.0
