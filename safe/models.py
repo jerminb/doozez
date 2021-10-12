@@ -52,8 +52,6 @@ class Profile(TimeStampedModel):
     profile_pic = models.ImageField(null=True, blank=True)
 
 
-
-
 class DoozezJobStatus(models.TextChoices):
     Created = 'CRT', _('Created')
     Running = 'RNG', _('Running')
@@ -139,6 +137,35 @@ class DoozezTask(TimeStampedModel):
 
     def __str__(self):
         return '%d, %s: status: %s, exceptions: %s' % (self.id, self.get_task_type_display(), self.get_status_display(), self.exceptions)
+
+
+class GCEvent(models.Model):
+    event_id = models.TextField()
+    resource_type = models.TextField()
+    action = models.TextField()
+    link_id = models.TextField(null=True)
+    cause = models.TextField(null=True)
+    description = models.TextField(null=True)
+    gc_created_at = models.TextField(null=True)
+
+
+# Job, Event and Tasks can be refactored to get rid of boilerplate code
+# With a single RunnableStatus and Runnable abstract parent model,
+# we can potentially remove duplicated code
+class EventStatus(models.TextChoices):
+    Created = 'CRT', _('Created')
+    Running = 'RNG', _('Running')
+    Successful = 'SUC', _('Success')
+    Failed = 'FLD', _('Failed')
+
+
+class Event(TimeStampedModel):
+    gc_event = models.ForeignKey(GCEvent, on_delete=models.CASCADE, related_name='%(class)s_user', null=True)
+    status = FSMField(
+        choices=EventStatus.choices,
+        default=EventStatus.Created,
+        protected=True,
+    )
 
 
 class MandateStatus(models.TextChoices):
@@ -347,14 +374,4 @@ class GCFlow(models.Model):
     flow_redirect_url = models.TextField(null=True)
     session_token = models.TextField()
     payment_method = models.OneToOneField(PaymentMethod, on_delete=models.CASCADE)
-
-
-class GCEvent(TimeStampedModel):
-    event_id = models.TextField()
-    resource_type = models.TextField()
-    action = models.TextField()
-    link_id = models.TextField(null=True)
-    cause = models.TextField(null=True)
-    description = models.TextField(null=True)
-    gc_created_at = models.TextField(null=True)
 
