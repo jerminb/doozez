@@ -406,14 +406,3 @@ class UsersManagersTests(TestCase):
     def test_send_notification_for_non_user(self):
         with self.assertRaises(ValidationError):
             send_notification_to_user(204, "will fail", "will fail", "")
-
-    def test_webhooks(self):
-        client = APIClient()
-        data = {
-            'registration_id': 'foo_reg_id',
-            'type': 'android'
-        }
-        response = client.post(reverse('webhook-list'),
-                               data=json.dumps(data),
-                               content_type='application/json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)

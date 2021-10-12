@@ -178,6 +178,8 @@ class PaymentMethodStatus(models.TextChoices):
     PendingExternalApproval = 'PEA', _('PendingExternalApproval')
     ExternalApprovalSuccessful = 'EAS', _('ExternalApprovalSuccessful')
     ExternalApprovalFailed = 'EAF', _('ExternalApprovalFailed')
+    ExternallySubmitted = 'EXS', _('ExternallySubmitted')
+    ExternallyActivated = 'EXA', _('ExternallySubmitted')
 
 
 class PaymentMethod(models.Model):
@@ -199,6 +201,16 @@ class PaymentMethod(models.Model):
     @transition(field=status, source=[PaymentMethodStatus.PendingExternalApproval],
                 target=PaymentMethodStatus.ExternalApprovalFailed)
     def failApproveWithExternalFailed(self):
+        pass
+
+    @transition(field=status, source=[PaymentMethodStatus.ExternalApprovalSuccessful],
+                target=PaymentMethodStatus.ExternallySubmitted)
+    def submittedExternally(self):
+        pass
+
+    @transition(field=status, source=[PaymentMethodStatus.ExternallySubmitted],
+                target=PaymentMethodStatus.ExternallyActivated)
+    def activatedExternally(self):
         pass
 
 
@@ -335,4 +347,14 @@ class GCFlow(models.Model):
     flow_redirect_url = models.TextField(null=True)
     session_token = models.TextField()
     payment_method = models.OneToOneField(PaymentMethod, on_delete=models.CASCADE)
+
+
+class GCEvent(TimeStampedModel):
+    event_id = models.TextField()
+    resource_type = models.TextField()
+    action = models.TextField()
+    link_id = models.TextField(null=True)
+    cause = models.TextField(null=True)
+    description = models.TextField(null=True)
+    gc_created_at = models.TextField(null=True)
 

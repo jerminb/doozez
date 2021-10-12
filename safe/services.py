@@ -8,7 +8,7 @@ from djmoney.money import Money
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, \
     ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
-    Payment, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus
+    Payment, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, GCEvent
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -97,7 +97,6 @@ class MandateService(object):
         mandate.submit()
         return mandate
 
-
 class PaymentMethodService(object):
     mandate_service = MandateService()
 
@@ -168,6 +167,16 @@ class PaymentMethodService(object):
         payment_method = self.getPaymentMethodsWithQ(Q(pk=pk)).first()
         payment_method.failApproveWithExternalFailed()
         return payment_method
+
+    def mandateExternallySumitted(self, mandate_external_id):
+        payment_method = self.getPaymentMethodsWithQ(Q(mandate__mandate_external_id=mandate_external_id)).first()
+        payment_method.submittedExternally()
+        payment_method.save()
+
+    def mandateExternallyActivated(self, mandate_external_id):
+        payment_method = self.getPaymentMethodsWithQ(Q(mandate__mandate_external_id=mandate_external_id)).first()
+        payment_method.activatedExternally()
+        payment_method.save()
 
 
 class ParticipationService(object):
@@ -247,6 +256,27 @@ class PaymentService(object):
                                          description=description,
                                          external_id=external_payment.id)
         return payment
+
+
+class EventService(object):
+
+    def __init__(self):
+        pass
+
+    def createEvent(self, event_id, created_at, resource_type, action, link_id, cause, description):
+        return GCEvent.objects.create(event_id=event_id,
+                                      gc_created_at=created_at,
+                                      resource_type=resource_type,
+                                      action=action,
+                                      link_id=link_id,
+                                      cause=cause,
+                                      description=description)
+
+    def getEventsByLinksId(self, link_id):
+        return GCEvent.objects.filter(link_id=link_id).all()
+
+    def getEventByEventId(self, event_id):
+        return GCEvent.objects.filter(event_id=event_id).first()
 
 
 class TaskService(object):

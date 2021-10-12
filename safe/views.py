@@ -367,6 +367,7 @@ class WebhookViewSet(viewsets.ModelViewSet):
         try:
             for event in self.get_events(request):
                 self.logger.info("Processing event {}\n".format(event.id))
+                self.logger.info("Processing event {}\n".format(event.created_at))
                 # Do something with the events ...
                 pass
 

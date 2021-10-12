@@ -269,6 +269,23 @@ class ServiceTest(TestCase):
         self.assertEqual(payment.status, PaymentStatus.PendingSubmission)
         self.assertEqual(str(payment.amount), '£10.00')
 
+    def test_payment_method_workflow(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        User.objects.create_user(email='bob@user.com', password='foo')
+        mandate = Mandate.objects.create(mandate_external_id="foo_mandate")
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      mandate=mandate,
+                                                      status=PaymentMethodStatus.ExternalApprovalSuccessful)
+        service = PaymentMethodService()
+        service.mandateExternallySumitted("foo_mandate")
+        payment_method = PaymentMethod.objects.get(pk=payment_method.pk)
+        self.assertEqual(payment_method.status, PaymentMethodStatus.ExternallySubmitted)
+        service.mandateExternallyActivated("foo_mandate")
+        payment_method = PaymentMethod.objects.get(pk=payment_method.pk)
+        self.assertEqual(payment_method.status, PaymentMethodStatus.ExternallyActivated)
+
     def test_safe_start(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
