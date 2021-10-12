@@ -16,6 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.conf.urls import url
 from django.urls import path, include
+from fcm_django.api.rest_framework import FCMDeviceAuthorizedViewSet
 
 from allauth.account.views import confirm_email
 from safe.views import ConfirmatioView
@@ -27,5 +28,6 @@ urlpatterns = [
     url(r'^auth/registration/', include('rest_auth.registration.urls')),
     url(r'^account/', include('allauth.urls')),
     url(r'^accounts/registration/account-confirm-email/(?P<key>.+)/$', confirm_email, name='account_confirm_email'),
-    url('confirmation', ConfirmatioView.as_view(), name='confirmation')
+    url('confirmation', ConfirmatioView.as_view(), name='confirmation'),
+    path('devices', FCMDeviceAuthorizedViewSet.as_view({'post': 'create'}), name='create_fcm_device'),
 ]

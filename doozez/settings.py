@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'djmoney',
     "django_apscheduler",
+    'fcm_django',
 ]
 
 MIDDLEWARE = [

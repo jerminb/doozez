@@ -1,13 +1,16 @@
 import json
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
+from fcm_django.models import FCMDevice
 from rest_framework.reverse import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 
 from .models import Safe, Invitation, InvitationStatus, PaymentMethod, DoozezJob, DoozezJobType, DoozezTaskStatus, \
     DoozezTaskType, DoozezTask, Participation, ParticipantRole, SafeStatus, ParticipationStatus
+from .utils import send_notification_to_user
 
 
 class UsersManagersTests(TestCase):
@@ -383,3 +386,34 @@ class UsersManagersTests(TestCase):
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['email'], 'alice@user.com')
+
+    def test_register_device(self):
+        User = get_user_model()
+        alice=User.objects.create_user(email='alice@user.com', password='foo')
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        data = {
+            'registration_id': 'foo_reg_id',
+            'type': 'android'
+        }
+        response = client.post(reverse('create_fcm_device'),
+                               data=json.dumps(data),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        device = FCMDevice.objects.filter(user=alice.pk).last()
+        self.assertEqual(device.registration_id, 'foo_reg_id')
+
+    def test_send_notification_for_non_user(self):
+        with self.assertRaises(ValidationError):
+            send_notification_to_user(204, "will fail", "will fail", "")
+
+    def test_webhooks(self):
+        client = APIClient()
+        data = {
+            'registration_id': 'foo_reg_id',
+            'type': 'android'
+        }
+        response = client.post(reverse('webhook-list'),
+                               data=json.dumps(data),
+                               content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

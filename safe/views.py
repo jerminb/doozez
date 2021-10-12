@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import uuid
 
@@ -6,11 +7,12 @@ from django.contrib.auth.models import Group
 from django.http import HttpResponse
 from django.views.generic import TemplateView
 from django.db.models import Q
+from gocardless_pro import webhooks
+from gocardless_pro.errors import InvalidSignatureError
 from rest_framework import viewsets
 from rest_framework import permissions, status
-from rest_framework.decorators import action, permission_classes
+from rest_framework.decorators import action, permission_classes, authentication_classes
 from django.core.exceptions import ValidationError
-from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from .permissions import IsOwner
@@ -347,3 +349,27 @@ class TokensViewSet(viewsets.ReadOnlyModelViewSet):
     def get_user_for_token(self, request, *args, **kwargs):
         return Response(data=UserSerializer(self.request.user, context={'request': request}).data,
                         status=status.HTTP_200_OK)
+
+
+class WebhookViewSet(viewsets.ModelViewSet):
+    authentication_classes = []
+    permission_classes = []
+
+    logger = logging.getLogger(__name__)
+
+    def get_events(self, request):
+        secret = os.environ['GC_WEBHOOK_SECRET']
+        signature = request.META["HTTP_WEBHOOK_SIGNATURE"]
+        body = request.body.strip()
+        return webhooks.parse(body, secret, signature)
+
+    def create(self, request):
+        try:
+            for event in self.get_events(request):
+                self.logger.info("Processing event {}\n".format(event.id))
+                # Do something with the events ...
+                pass
+
+            return HttpResponse(200)
+        except InvalidSignatureError:
+            return HttpResponse(498)
