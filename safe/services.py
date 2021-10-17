@@ -1,5 +1,7 @@
 import json
+import logging
 import sys
+from typing import Union
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -8,7 +10,7 @@ from djmoney.money import Money
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, \
     ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
-    Payment, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, GCEvent, Event
+    Payment, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, GCEvent, Event, DoozezExecutableStatus
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -258,27 +260,25 @@ class PaymentService(object):
                                          external_id=external_payment.id)
         return payment
 
+    def getPendingConfirmationPaymentsForSafe(self, safe_id):
+        result = Payment.objects.filter(
+            Q(participation__safe=safe_id) &
+            (Q(status=PaymentStatus.PendingSubmission) | Q(status=PaymentStatus.Submitted))).all()
+        return result
 
-class EventService(object):
+    def getPendingConfirmationPaymentsForPayment(self, payment_id):
+        payment = Payment.objects.get(pk=payment_id)
+        if payment is None:
+            raise ValidationError("payment not found for {}".format(str(payment_id)))
+        return self.getPendingConfirmationPaymentsForSafe(payment.participation.safe.pk).filter(~Q(pk=payment_id))
 
-    def __init__(self):
-        pass
-
-    def createEvent(self, event_id, created_at, resource_type, action, link_id, cause, description):
-        gc_event = GCEvent.objects.create(event_id=event_id,
-                                          gc_created_at=created_at,
-                                          resource_type=resource_type,
-                                          action=action,
-                                          link_id=link_id,
-                                          cause=cause,
-                                          description=description)
-        return Event.objects.create(gc_event=gc_event)
-
-    def getEventsByLinksId(self, link_id):
-        return Event.objects.filter(gc_event__link_id=link_id).all()
-
-    def getEventByEventId(self, event_id):
-        return Event.objects.filter(gc_event__event_id=event_id).first()
+    def paymentExternallyConfirmed(self, payment_id):
+        payment = Payment.objects.get(pk=payment_id)
+        if payment is None:
+            raise ValidationError("payment not found for {}".format(str(payment_id)))
+        payment.paymentConfirmed()
+        payment.save()
+        return payment
 
 
 class TaskService(object):
@@ -321,66 +321,119 @@ class TaskService(object):
             raise ex
 
 
-class JobService(object):
+class ExecutableService(object):
 
     def __init__(self):
         pass
 
-    def createJob(self, job_type, user):
-        return DoozezJob.objects.create(job_type=job_type, user=user)
+    def get_query_set(self):
+        pass
 
-    def getJobsWithConcurrencyWithQ(self, query):
-        return DoozezJob.objects.select_for_update().filter(query)
+    def getExecutableWithConcurrencyWithQ(self, query):
+        return self.get_query_set().select_for_update().filter(query)
 
-    def getOrderedPendingJobs(self):
-        return self.getJobsWithConcurrencyWithQ(Q(status=DoozezJobStatus.Created)
-                                                or Q(status=DoozezJobStatus.Running)).order_by('-created_on')
+    def getOrderedPendingExecutable(self):
+        return self.getExecutableWithConcurrencyWithQ(Q(status=DoozezExecutableStatus.Created)
+                                                      or Q(status=DoozezExecutableStatus.Running)).order_by(
+            '-created_on')
 
-    def getNextRunableTask(self):
-        return self.getOrderedPendingJobs().first()
+    def getNextExecutable(self):
+        return self.getOrderedPendingExecutable().first()
 
-    def runNextRunnableJob(self):
-        job = None
+    def runNextExecutable(self):
+        executable = None
         with transaction.atomic():
-            job = self.getNextRunableTask()
-            if job is None:
+            executable = self.getNextExecutable()
+            if executable is None:
                 return
-            job.startRunning()
-            job.save()
-        return job
+            executable.startRunning()
+            executable.save()
+        return executable
 
-    def finishJobSuccefully(self, job_id):
+    def finishExecutableSuccefully(self, exec_id):
         with transaction.atomic():
-            job = self.getJobsWithConcurrencyWithQ(Q(pk=job_id)).first()
-            job.finishSuccessfully()
-            job.save()
+            executable = self.getExecutableWithConcurrencyWithQ(Q(pk=exec_id)).first()
+            executable.finishSuccessfully()
+            executable.save()
 
-    def finishJobWithFailure(self, job_id):
+    def finishExecutableWithFailure(self, exec_id):
         with transaction.atomic():
-            job = self.getJobsWithConcurrencyWithQ(Q(pk=job_id)).first()
-            job.finishWithFailure()
-            job.save()
+            executable = self.getExecutableWithConcurrencyWithQ(Q(pk=exec_id)).first()
+            executable.finishWithFailure()
+            executable.save()
+
+
+class EventService(ExecutableService):
+
+    def __init__(self):
+        super().__init__()
+
+    def get_query_set(self):
+        return Event.objects
+
+    def createEvent(self, event_id, created_at, resource_type, action, link_id, cause, description):
+        gc_event = GCEvent.objects.create(event_id=event_id,
+                                          gc_created_at=created_at,
+                                          resource_type=resource_type,
+                                          action=action,
+                                          link_id=link_id,
+                                          cause=cause,
+                                          description=description)
+        return self.get_query_set().create(gc_event=gc_event)
+
+    def getEventsByLinksId(self, link_id):
+        return self.get_query_set().filter(gc_event__link_id=link_id).all()
+
+    def getEventByEventId(self, event_id):
+        return self.get_query_set().filter(gc_event__event_id=event_id).first()
+
+
+class JobService(ExecutableService):
+
+    def __init__(self):
+        super().__init__()
+
+    def get_query_set(self):
+        return DoozezJob.objects
+
+    def createJob(self, job_type, user):
+        return self.get_query_set().create(job_type=job_type, user=user)
+
+
+class Executor(object):
+
+    def __init__(self, executable_service):
+        self.executable_service = executable_service
+
+    def runNextExecutable(self):
+        return self.executable_service.runNextExecutable()
+
+    def finalizeSuccessfully(self, executable_id):
+        self.executable_service.finishExecutableSuccefully(executable_id)
+
+    def finalizeWithFailure(self, executable_id):
+        self.executable_service.finishExecutableWithFailure(executable_id)
 
 
 class JobExecutor(object):
     task_service = TaskService()
-    job_service = JobService()
+    executor = Executor(JobService())
 
     def __init__(self):
         pass
 
     def executeNextRunnableJob(self):
-        job = self.job_service.runNextRunnableJob()
+        job = self.executor.runNextExecutable()
         if job is None:
             return
         try:
             task = self.task_service.getNextRunableTask(job.pk)
             if task is None:
-                self.job_service.finishJobSuccefully(job.pk)
+                self.executor.finalizeSuccessfully(job.pk)
                 return
             self.task_service.runNextRunnableTask(job.pk)
         except:
-            self.job_service.finishJobWithFailure(job.pk)
+            self.executor.finalizeWithFailure(job.pk)
         return
 
 
@@ -421,12 +474,12 @@ class TaskPlanner(object):
 
 class SafeService(object):
     participation_service = ParticipationService()
-    payment_method_service = PaymentMethodService()
     invitation_service = InvitationService()
     task_planner = TaskPlanner()
 
-    def __init__(self):
-        pass
+    def __init__(self, access_token=None, environment=None):
+        self.payment_service = PaymentService(access_token, environment)
+        self.payment_method_service = PaymentMethodService(access_token, environment)
 
     def getSafeWithId(self, safe_id):
         return Safe.objects.get(pk=safe_id)
@@ -476,3 +529,53 @@ class SafeService(object):
         safe.job = job
         safe.save()
         return safe
+
+    def completeStartSafe(self, safe_id) -> Union[Safe, ValidationError]:
+        safe = self.getSafeWithId(safe_id)
+        if safe is None or safe.status != SafeStatus.Starting:
+            return None, ValidationError("safe {} with Starting status not found".format(safe_id))
+        pending_payment = self.payment_service.getPendingConfirmationPaymentsForSafe(safe_id)
+        if not pending_payment:
+            safe.status = SafeStatus.Started
+            safe.save()
+        return safe, None
+
+
+class EventExecutor(object):
+    logger = logging.getLogger(__name__)
+    executor = Executor(EventService())
+
+    def __init__(self, access_token=None, environment=None):
+        self.payment_method_service = PaymentMethodService(access_token, environment)
+        self.payment_service = PaymentService(access_token, environment)
+        self.safe_service = SafeService()
+
+    def mandate_active(self, mandate_id):
+        return self.payment_method_service.mandateExternallyActivated(mandate_id)
+
+    def payment_confirmed(self, payment_id):
+        payment = self.payment_service.paymentExternallyConfirmed(payment_id)
+        safe, validation_error = self.safe_service.completeStartSafe(payment.participation.safe.pk)
+        if validation_error is not None:
+            self.logger.info("completeStartSafe failed: {}".format(validation_error))
+        return payment
+
+    def executeNextRunnableJob(self):
+        result = None
+        event = self.executor.runNextExecutable()
+        if event is None:
+            return
+        options = {
+            "mandates": {
+                "active": self.mandate_active,
+            },
+            "payments": {
+                "confirmed": self.payment_confirmed,
+            }
+        }
+        try:
+            result = options[event.gc_event.resource_type][event.gc_event.action](event.gc_event.link_id)
+            self.executor.finalizeSuccessfully(event.pk)
+        except:
+            self.executor.finalizeWithFailure(event.pk)
+        return result

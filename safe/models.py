@@ -52,6 +52,39 @@ class Profile(TimeStampedModel):
     profile_pic = models.ImageField(null=True, blank=True)
 
 
+class DoozezExecutableStatus(models.TextChoices):
+    Created = 'CRT', _('Created')
+    Running = 'RNG', _('Running')
+    Successful = 'SUC', _('Success')
+    Failed = 'FLD', _('Failed')
+
+
+class DoozezExecutable(TimeStampedModel):
+    status = FSMField(
+        choices=DoozezExecutableStatus.choices,
+        default=DoozezExecutableStatus.Created,
+        protected=True,
+    )
+
+    @transition(field=status, source=[DoozezExecutableStatus.Created],
+                target=DoozezExecutableStatus.Running)
+    def startRunning(self):
+        pass
+
+    @transition(field=status, source=[DoozezExecutableStatus.Running],
+                target=DoozezExecutableStatus.Successful)
+    def finishSuccessfully(self):
+        pass
+
+    @transition(field=status, source=[DoozezExecutableStatus.Running],
+                target=DoozezExecutableStatus.Failed)
+    def finishWithFailure(self):
+        pass
+
+    class Meta:
+        abstract = True
+
+
 class DoozezJobStatus(models.TextChoices):
     Created = 'CRT', _('Created')
     Running = 'RNG', _('Running')
@@ -63,32 +96,12 @@ class DoozezJobType(models.TextChoices):
     StartSafe = 'SSF', _('StartSafe')
 
 
-class DoozezJob(TimeStampedModel):
-    status = FSMField(
-        choices=DoozezJobStatus.choices,
-        default=DoozezJobStatus.Created,
-        protected=True,
-    )
+class DoozezJob(DoozezExecutable):
     job_type = models.CharField(
         max_length=3,
         choices=DoozezJobType.choices
     )
     user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
-
-    @transition(field=status, source=[DoozezJobStatus.Created],
-                target=DoozezJobStatus.Running)
-    def startRunning(self):
-        pass
-
-    @transition(field=status, source=[DoozezJobStatus.Running],
-                target=DoozezJobStatus.Successful)
-    def finishSuccessfully(self):
-        pass
-
-    @transition(field=status, source=[DoozezJobStatus.Running],
-                target=DoozezJobStatus.Failed)
-    def finishWithFailure(self):
-        pass
 
 
 class DoozezTaskStatus(models.TextChoices):
@@ -149,23 +162,8 @@ class GCEvent(models.Model):
     gc_created_at = models.TextField(null=True)
 
 
-# Job, Event and Tasks can be refactored to get rid of boilerplate code
-# With a single RunnableStatus and Runnable abstract parent model,
-# we can potentially remove duplicated code
-class EventStatus(models.TextChoices):
-    Created = 'CRT', _('Created')
-    Running = 'RNG', _('Running')
-    Successful = 'SUC', _('Success')
-    Failed = 'FLD', _('Failed')
-
-
-class Event(TimeStampedModel):
+class Event(DoozezExecutable):
     gc_event = models.ForeignKey(GCEvent, on_delete=models.CASCADE, related_name='%(class)s_user', null=True)
-    status = FSMField(
-        choices=EventStatus.choices,
-        default=EventStatus.Created,
-        protected=True,
-    )
 
 
 class MandateStatus(models.TextChoices):
@@ -367,6 +365,11 @@ class Payment(TimeStampedModel):
     charge_date = models.DateTimeField(null=True, blank=True)
     description = models.TextField()
     external_id = models.TextField(null=True, blank=True)
+
+    @transition(field=status, source=[PaymentStatus.Submitted, PaymentStatus.PendingSubmission],
+                target=PaymentStatus.Confirmed)
+    def paymentConfirmed(self):
+        pass
 
 
 class GCFlow(models.Model):

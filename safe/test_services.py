@@ -8,10 +8,10 @@ from unittest import mock
 from .decorators import clear, doozez_task
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
-    MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, SafeStatus, \
-    ParticipationStatus, Mandate, PaymentStatus, Invitation
+    MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, SafeStatus, \
+    ParticipationStatus, Mandate, PaymentStatus, Invitation, DoozezExecutableStatus, Event
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
-    ParticipationService, PaymentService, TaskPlanner, JobService, JobExecutor
+    ParticipationService, PaymentService, TaskPlanner, JobService, JobExecutor, EventExecutor, EventService
 
 
 class ServiceTest(TestCase):
@@ -269,6 +269,43 @@ class ServiceTest(TestCase):
         self.assertEqual(payment.status, PaymentStatus.PendingSubmission)
         self.assertEqual(str(payment.amount), '£10.00')
 
+    @mock.patch('safe.client_interfaces.PaymentGatewayClient')
+    def test_get_pending_payments(self, mock_ci):
+        expected_dict = {
+            "id": "foo",
+        }
+        mock_ci.create_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
+            *expected_dict.values())
+        payment_service = PaymentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
+        payment_service.payment_gate_way_client = mock_ci
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        alice_mandate = Mandate.objects.create(mandate_external_id="alice_mandate")
+        alice_payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=alice_mandate)
+        bob_mandate = Mandate.objects.create(mandate_external_id="bob_mandate")
+        bob_payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=bob_mandate)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice)
+        alice_participation = Participation.objects.create(user=alice,
+                                                           safe=safe,
+                                                           user_role=ParticipantRole.Initiator,
+                                                           payment_method=alice_payment_method)
+        bob_participation = Participation.objects.create(user=bob,
+                                                         safe=safe,
+                                                         user_role=ParticipantRole.Participant,
+                                                         payment_method=bob_payment_method)
+        alice_payment = payment_service.createPayment(alice_participation.pk,
+                                                      10.0,
+                                                      'GBP',
+                                                      'description')
+        bob_payment = payment_service.createPayment(bob_participation.pk,
+                                                    10.0,
+                                                    'GBP',
+                                                    'description')
+        pending_payments = payment_service.getPendingConfirmationPaymentsForPayment(alice_payment.pk)
+        self.assertEqual(len(pending_payments), 1)
+        self.assertEqual(pending_payments[0].pk, bob_payment.pk)
+
     def test_payment_method_workflow(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
@@ -301,7 +338,7 @@ class ServiceTest(TestCase):
         invitation = service.createInvitation(alice, bob, safe)
         safe_service = SafeService()
         safe = safe_service.startSafe(alice, safe, True)
-        self.assertEqual(safe.job.status, DoozezJobStatus.Created)
+        self.assertEqual(safe.job.status, DoozezExecutableStatus.Created)
         self.assertEqual(safe.status, SafeStatus.Starting)
         invitation = Invitation.objects.get(pk=invitation.pk)
         self.assertEqual(invitation.status, InvitationStatus.RemovedBySender)
@@ -398,11 +435,11 @@ class ServiceTest(TestCase):
         jobfoo = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
         jobbar = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
         service = JobService()
-        service.runNextRunnableJob()
+        service.runNextExecutable()
         post_jobbar = DoozezJob.objects.get(pk=jobbar.pk)
-        self.assertEqual(post_jobbar.status, DoozezJobStatus.Running)
+        self.assertEqual(post_jobbar.status, DoozezExecutableStatus.Running)
         post_jobfoo = DoozezJob.objects.get(pk=jobfoo.pk)
-        self.assertEqual(post_jobfoo.status, DoozezJobStatus.Created)
+        self.assertEqual(post_jobfoo.status, DoozezExecutableStatus.Created)
 
     def test_job_executor_execute(self):
         clear()
@@ -418,7 +455,7 @@ class ServiceTest(TestCase):
         executor = JobExecutor()
         executor.executeNextRunnableJob()
         job = DoozezJob.objects.get(pk=job.pk)
-        self.assertEqual(job.status, DoozezJobStatus.Failed)
+        self.assertEqual(job.status, DoozezExecutableStatus.Failed)
 
     def test_task_service_create_task(self):
         clear()
@@ -455,3 +492,61 @@ class ServiceTest(TestCase):
         self.assertEqual(
             task.parameters,
             '{{"participation_id":"{}", "amount":"10", "currency":"GBP"}}'.format(participation.pk))
+
+    def test_event_executor(self):
+        service = EventService()
+        event = service.createEvent('foo_event',
+                                    '17-10-2021', 'mandates',
+                                    'active', 'foo_mandate',
+                                    'cause', 'description')
+        executor = EventExecutor()
+
+        def mandate_active(link_id):
+            return link_id
+        executor.mandate_active = mandate_active
+        link_id = executor.executeNextRunnableJob()
+        self.assertEqual(link_id, 'foo_mandate')
+        event = Event.objects.get(pk=event.pk)
+        self.assertEqual(event.status, DoozezExecutableStatus.Successful)
+
+    @mock.patch('safe.client_interfaces.PaymentGatewayClient')
+    def test_payment_confirmed(self, mock_ci):
+        expected_dict = {
+            "id": "foo",
+        }
+        mock_ci.create_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
+            *expected_dict.values())
+        payment_service = PaymentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
+        payment_service.payment_gate_way_client = mock_ci
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        alice_mandate = Mandate.objects.create(mandate_external_id="alice_mandate")
+        alice_payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=alice_mandate)
+        bob_mandate = Mandate.objects.create(mandate_external_id="bob_mandate")
+        bob_payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=bob_mandate)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice, status=SafeStatus.Starting)
+        alice_participation = Participation.objects.create(user=alice,
+                                                           safe=safe,
+                                                           user_role=ParticipantRole.Initiator,
+                                                           payment_method=alice_payment_method)
+        bob_participation = Participation.objects.create(user=bob,
+                                                         safe=safe,
+                                                         user_role=ParticipantRole.Participant,
+                                                         payment_method=bob_payment_method)
+        alice_payment = payment_service.createPayment(alice_participation.pk,
+                                                      10.0,
+                                                      'GBP',
+                                                      'description')
+        bob_payment = payment_service.createPayment(bob_participation.pk,
+                                                    10.0,
+                                                    'GBP',
+                                                    'description')
+        executor = EventExecutor()
+        payment = executor.payment_confirmed(alice_payment.pk)
+        self.assertEqual(payment.id, alice_payment.pk)
+        safe = Safe.objects.get(pk=safe.pk)
+        self.assertEqual(safe.status, SafeStatus.Starting)
+        executor.payment_confirmed(bob_payment.pk)
+        safe = Safe.objects.get(pk=safe.pk)
+        self.assertEqual(safe.status, SafeStatus.Started)
