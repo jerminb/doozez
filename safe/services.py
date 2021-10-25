@@ -198,6 +198,9 @@ class ParticipationService(object):
     def getParticipationForSafe(self, safe_id):
         return self.getParticipationWithQ(Q(safe__id=safe_id)).all()
 
+    def getParticipantCountForSafe(self, safe_id):
+        return self.getParticipationForSafe(safe_id).count()
+
     def createParticipation(self, user, invitation, safe, payment_method, role):
         participation = Participation(user=user, invitation=invitation, safe=safe,
                                       payment_method=payment_method, user_role=role)
@@ -539,6 +542,32 @@ class SafeService(object):
             safe.status = SafeStatus.Started
             safe.save()
         return safe, None
+
+
+class InstallmentService(object):
+    participation_service = ParticipationService()
+
+    def __init__(self, access_token=None, environment=None):
+        if access_token is None or environment is None:
+            self.payment_gate_way_client = None
+        else:
+            self.payment_gate_way_client = PaymentGatewayClient(access_token, environment)
+        self.safe_service = SafeService(access_token, environment)
+
+    def createInstallmentForSafe(self, safe_id, app_fee, currency):
+        participants = self.participation_service.getParticipationForSafe(safe_id)
+        safe = self.safe_service.getSafeWithId(safe_id)
+        total_installments = len(participants) - 1
+        total_amount = safe.monthly_payment * total_installments * 100  # in Pence
+        amounts = []
+        for i in range(total_installments):
+            amounts.append(safe.monthly_payment * 100)  # in Pence
+        for participant in participants:
+            self.payment_gate_way_client. \
+                create_installment_with_schedule("{}-installments".format(safe.name),
+                                                 participant.payment_method.mandate.mandate_external_id,
+                                                 total_amount, app_fee, amounts,
+                                                 currency)
 
 
 class EventExecutor(object):

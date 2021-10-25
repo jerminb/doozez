@@ -183,6 +183,20 @@ class ServiceTest(TestCase):
         with self.assertRaises(ValidationError):
             participation_service.leaveSafe(participation.pk, bob.pk)
 
+    def test_participation_count(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice)
+        Participation.objects.create(user=alice,
+                                     safe=safe,
+                                     user_role=ParticipantRole.Initiator,
+                                     payment_method=payment_method,
+                                     status=ParticipationStatus.Active)
+        participation_service = ParticipationService()
+        total = participation_service.getParticipantCountForSafe(safe.pk)
+        self.assertEqual(total, 1)
+
     @mock.patch('gocardless_pro.Client.redirect_flows')
     def test_create_payments_for_user(self, mock_gc):
         expected_dict = {
@@ -503,6 +517,7 @@ class ServiceTest(TestCase):
 
         def mandate_active(link_id):
             return link_id
+
         executor.mandate_active = mandate_active
         link_id = executor.executeNextRunnableJob()
         self.assertEqual(link_id, 'foo_mandate')
