@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'djmoney',
     "django_apscheduler",
     'fcm_django',
+    'django_rest_passwordreset',
 ]
 
 MIDDLEWARE = [

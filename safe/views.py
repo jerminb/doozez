@@ -2,16 +2,23 @@ import json
 import logging
 import os
 import uuid
+from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth.models import Group
+from django.contrib.auth.password_validation import validate_password, get_password_validators
 from django.http import HttpResponse
+from django.shortcuts import render
+from django.utils import timezone
 from django.views.generic import TemplateView
 from django.db.models import Q
+from django_rest_passwordreset.models import get_password_reset_token_expiry_time, ResetPasswordToken
+from django_rest_passwordreset.signals import pre_password_reset, post_password_reset
 from gocardless_pro import webhooks
 from gocardless_pro.errors import InvalidSignatureError
 from rest_framework import viewsets
 from rest_framework import permissions, status
-from rest_framework.decorators import action, permission_classes, authentication_classes
+from rest_framework.decorators import action
 from django.core.exceptions import ValidationError
 from rest_framework.response import Response
 
@@ -34,6 +41,73 @@ class ConfirmatioView(TemplateView):
         else:
             service.approveWithExternalSuccessWithFlowId(flow_id)
         return super().get(request, *args, **kwargs)
+
+
+class PasswordResetView(TemplateView):
+    logger = logging.getLogger(__name__)
+    template_name = "passwordreset/password_reset_confirm.html"
+
+    def validate_token(self, token):
+        # get token validation time
+        password_reset_token_validation_time = get_password_reset_token_expiry_time()
+
+        # find token
+        reset_password_token = ResetPasswordToken.objects.filter(key=token).first()
+
+        if reset_password_token is None:
+            return 'invalid'
+
+        # check expiry date
+        expiry_date = reset_password_token.created_at + timedelta(hours=password_reset_token_validation_time)
+
+        if timezone.now() > expiry_date:
+            # delete expired token
+            reset_password_token.delete()
+            return 'expired'
+
+    def reset_password(self, token, password):
+        reset_password_token = ResetPasswordToken.objects.filter(key=token).first()
+
+        # change users password (if we got to this code it means that the user is_active)
+        if reset_password_token.user.eligible_for_reset():
+            pre_password_reset.send(sender=self.__class__, user=reset_password_token.user)
+            try:
+                # validate the password against existing validators
+                validate_password(
+                    password,
+                    user=reset_password_token.user,
+                    password_validators=get_password_validators(settings.AUTH_PASSWORD_VALIDATORS)
+                )
+            except ValidationError as e:
+                # raise a validation error for the serializer
+                raise ValidationError({
+                    'password': e.messages
+                })
+
+            reset_password_token.user.set_password(password)
+            reset_password_token.user.save()
+            post_password_reset.send(sender=self.__class__, user=reset_password_token.user)
+
+    def list(self, request, *args, **kwargs):
+        token = request.GET.get('token')
+        token_status = self.validate_token(token)
+        if token_status != 'active':
+            return HttpResponse({'status': token_status},
+                                content_type='application/json',
+                                status=status.HTTP_404_NOT_FOUND)
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        token = request.GET.get('token')
+        token_status = self.validate_token(token)
+        reset_password_data = request.POST.dict()
+        password = reset_password_data.get("password")
+        if token_status != 'active':
+            return HttpResponse({'status': token_status},
+                                content_type='application/json',
+                                status=status.HTTP_404_NOT_FOUND)
+        self.reset_password(token, password)
+        return render(request, 'passwordreset/password_reset_done.html')
 
 
 class OwnerViewSet(viewsets.ModelViewSet):

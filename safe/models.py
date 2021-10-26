@@ -320,7 +320,7 @@ class Participation(models.Model):
     )
     status = FSMField(
         choices=ParticipationStatus.choices,
-        default=ParticipationStatus.Pending,
+        default=ParticipationStatus.Active,
         protected=True,
     )
     invitation = models.ForeignKey(Invitation, on_delete=models.CASCADE, related_name='invitation', null=True)

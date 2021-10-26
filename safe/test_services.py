@@ -151,7 +151,8 @@ class ServiceTest(TestCase):
         participation = Participation.objects.create(user=alice,
                                                      safe=safe,
                                                      user_role=ParticipantRole.Initiator,
-                                                     payment_method=payment_method)
+                                                     payment_method=payment_method,
+                                                     status=ParticipationStatus.Pending)
         participation_service = ParticipationService()
         with self.assertRaises(ValidationError):
             participation_service.leaveSafe(participation.pk, alice.pk)

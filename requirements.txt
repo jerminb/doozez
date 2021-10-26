@@ -28,3 +28,4 @@ psycopg2-binary>=2.8
 django-money==2.0.1
 django_apscheduler==0.6.0
 fcm-django==1.0.5
+django_rest_passwordreset==1.2.1

@@ -7,5 +7,6 @@ class SafeConfig(AppConfig):
     name = 'safe'
 
     def ready(self):
+        import safe.signals
         firebase_admin.initialize_app()
 
