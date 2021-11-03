@@ -203,8 +203,9 @@ class PaymentMethodStatus(models.TextChoices):
     PendingExternalApproval = 'PEA', _('PendingExternalApproval')
     ExternalApprovalSuccessful = 'EAS', _('ExternalApprovalSuccessful')
     ExternalApprovalFailed = 'EAF', _('ExternalApprovalFailed')
+    ExternallyCreated = 'EXC', _('ExternallyCreated')
     ExternallySubmitted = 'EXS', _('ExternallySubmitted')
-    ExternallyActivated = 'EXA', _('ExternallySubmitted')
+    ExternallyActivated = 'EXA', _('ExternallyActivated')
 
 
 class PaymentMethod(models.Model):
@@ -229,6 +230,11 @@ class PaymentMethod(models.Model):
         pass
 
     @transition(field=status, source=[PaymentMethodStatus.ExternalApprovalSuccessful],
+                target=PaymentMethodStatus.ExternallyCreated)
+    def createdExternally(self):
+        pass
+
+    @transition(field=status, source=[PaymentMethodStatus.ExternallyCreated],
                 target=PaymentMethodStatus.ExternallySubmitted)
     def submittedExternally(self):
         pass
@@ -237,6 +243,9 @@ class PaymentMethod(models.Model):
                 target=PaymentMethodStatus.ExternallyActivated)
     def activatedExternally(self):
         pass
+
+    def is_active(self):
+        return self.status == PaymentMethodStatus.ExternallyActivated
 
 
 class SafeStatus(models.TextChoices):

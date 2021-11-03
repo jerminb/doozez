@@ -27,7 +27,7 @@ from .serializers import UserSerializer, GroupSerializer, SafeSerializer, Invita
     InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer, \
     ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer, JobSerializer
 from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod, DoozezJob, InvitationStatus
-from .services import InvitationService, SafeService, PaymentMethodService, ParticipationService
+from .services import InvitationService, SafeService, PaymentMethodService, ParticipationService, EventService
 
 
 class ConfirmatioView(TemplateView):
@@ -428,6 +428,7 @@ class TokensViewSet(viewsets.ReadOnlyModelViewSet):
 class WebhookViewSet(viewsets.ModelViewSet):
     authentication_classes = []
     permission_classes = []
+    event_service = EventService()
 
     logger = logging.getLogger(__name__)
 
@@ -442,7 +443,17 @@ class WebhookViewSet(viewsets.ModelViewSet):
             for event in self.get_events(request):
                 self.logger.info("Processing event {}\n".format(event.id))
                 self.logger.info("Processing event {}\n".format(event.created_at))
-                # Do something with the events ...
+                link_id = ''
+                if event.resource_type == "mandates":
+                    link_id = event.links.mandate
+                elif event.resource_type == "payments":
+                    link_id = event.links.payment
+                self.event_service.createEvent(event.id,
+                                               event.created_at,
+                                               event.resource_type,
+                                               event.action, link_id,
+                                               event.details.cause,
+                                               event.details.description)
                 pass
 
             return HttpResponse(200)

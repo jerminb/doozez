@@ -122,11 +122,10 @@ class TaskSerializer(serializers.ModelSerializer):
 
 class JobSerializer(serializers.ModelSerializer):
     jobs_tasks = serializers.SerializerMethodField('get_tasks')
-    job_type = serializers.CharField(source='get_job_type_display')
 
     class Meta:
         model = DoozezJob
-        fields = ['id', 'created_on', 'status', 'job_type', 'jobs_tasks']
+        fields = ['id', 'created_on', 'status', 'jobs_tasks']
 
     def get_tasks(self, job):
         request = self.context.get('request')

@@ -56,6 +56,8 @@ class InvitationService(object):
             Q(user=invitation.recipient) & Q(pk=payment_method_id)).first()
         if payment_method is None:
             raise ValidationError("no payment method found for user")
+        if not payment_method.is_active():
+            raise ValidationError("payment method {} is not active".format(payment_method_id))
         participation_service.createParticipation(invitation.recipient, invitation, invitation.safe,
                                                   payment_method, ParticipantRole.Participant)
         invitation.accept()
@@ -102,6 +104,7 @@ class MandateService(object):
 
 class PaymentMethodService(object):
     mandate_service = MandateService()
+    logger = logging.getLogger(__name__)
 
     def __init__(self, access_token=None, environment=None):
         if access_token is None or environment is None:
@@ -171,14 +174,22 @@ class PaymentMethodService(object):
         payment_method.failApproveWithExternalFailed()
         return payment_method
 
-    def mandateExternallySumitted(self, mandate_external_id):
-        payment_method = self.getPaymentMethodsWithQ(Q(mandate__mandate_external_id=mandate_external_id)).first()
-        payment_method.submittedExternally()
-        payment_method.save()
-
     def mandateExternallyActivated(self, mandate_external_id):
         payment_method = self.getPaymentMethodsWithQ(Q(mandate__mandate_external_id=mandate_external_id)).first()
+        self.logger.info("activating paymentmethod {}".format(payment_method.pk))
         payment_method.activatedExternally()
+        payment_method.save()
+
+    def mandateExternallyCreated(self, mandate_external_id):
+        payment_method = self.getPaymentMethodsWithQ(Q(mandate__mandate_external_id=mandate_external_id)).first()
+        self.logger.info("activating paymentmethod {}".format(payment_method.pk))
+        payment_method.createdExternally()
+        payment_method.save()
+
+    def mandateExternallySubmitted(self, mandate_external_id):
+        payment_method = self.getPaymentMethodsWithQ(Q(mandate__mandate_external_id=mandate_external_id)).first()
+        self.logger.info("activating paymentmethod {}".format(payment_method.pk))
+        payment_method.submittedExternally()
         payment_method.save()
 
 
@@ -200,6 +211,9 @@ class ParticipationService(object):
 
     def getParticipantCountForSafe(self, safe_id):
         return self.getParticipationForSafe(safe_id).count()
+
+    def getActiveParticipationsForSafe(self, safe_id):
+        return self.getParticipationWithQ(Q(safe=safe_id) & ~Q(status=ParticipationStatus.Left)).all()
 
     def createParticipation(self, user, invitation, safe, payment_method, role):
         participation = Participation(user=user, invitation=invitation, safe=safe,
@@ -443,12 +457,13 @@ class JobExecutor(object):
 class TaskPlanner(object):
     task_service = TaskService()
     job_service = JobService()
+    particiaption_service = ParticipationService()
 
     def __init__(self):
         pass
 
     def createTasksForStartSafe(self, safe, job, currency='GBP'):
-        participations = safe.participations_safe.all()
+        participations = self.particiaption_service.getActiveParticipationsForSafe(safe.pk)
         tasks = []
         task_count = 0
         for i in range(len(participations)):
@@ -492,6 +507,8 @@ class SafeService(object):
             .filter(pk=payment_method_id).first()
         if payment_method is None:
             raise ValidationError("no payment method found for user")
+        if not payment_method.is_active():
+            raise ValidationError("payment method {} is not active".format(payment_method_id))
         safe = Safe(name=name, monthly_payment=monthly_payment, total_participants=1,
                     initiator=current_user)
         safe.save()
@@ -580,7 +597,16 @@ class EventExecutor(object):
         self.safe_service = SafeService()
 
     def mandate_active(self, mandate_id):
+        self.logger.info("processing mandate {}".format(mandate_id))
         return self.payment_method_service.mandateExternallyActivated(mandate_id)
+
+    def mandate_created(self, mandate_id):
+        self.logger.info("processing mandate {}".format(mandate_id))
+        return self.payment_method_service.mandateExternallyCreated(mandate_id)
+
+    def mandate_submitted(self, mandate_id):
+        self.logger.info("processing mandate {}".format(mandate_id))
+        return self.payment_method_service.mandateExternallySubmitted(mandate_id)
 
     def payment_confirmed(self, payment_id):
         payment = self.payment_service.paymentExternallyConfirmed(payment_id)
@@ -593,10 +619,13 @@ class EventExecutor(object):
         result = None
         event = self.executor.runNextExecutable()
         if event is None:
+            self.logger.info("no event found to process")
             return
         options = {
             "mandates": {
                 "active": self.mandate_active,
+                "created": self.mandate_created,
+                "submitted": self.mandate_submitted,
             },
             "payments": {
                 "confirmed": self.payment_confirmed,

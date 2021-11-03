@@ -52,7 +52,9 @@ class ServiceTest(TestCase):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         bob = self.User.objects.create_user(email='bob@user.com', password='foo')
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
-        payment_method = PaymentMethod.objects.create(user=bob, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=bob,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
         invitation = service.acceptInvitation(invitation, payment_method.pk, bob)
@@ -69,6 +71,17 @@ class ServiceTest(TestCase):
         invitation = service.createInvitation(alice, bob, safe)
         with self.assertRaises(ValidationError):
             service.acceptInvitation(invitation, 1, bob)
+
+    def test_accept_invite_without_active_payment_method(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=bob,
+                                                      is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        service = InvitationService()
+        invitation = service.createInvitation(alice, bob, safe)
+        with self.assertRaises(ValidationError):
+            service.acceptInvitation(invitation, payment_method.pk, bob)
 
     def test_accept_invite_others_invite(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
@@ -109,7 +122,9 @@ class ServiceTest(TestCase):
 
     def test_participant_after_create_safe(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
-        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
         service = SafeService()
         participation_service = ParticipationService()
         safe = service.createSafe(alice, 'foosafe', 1, payment_method.pk)
@@ -120,6 +135,14 @@ class ServiceTest(TestCase):
         self.assertEqual(participation.user_role, ParticipantRole.Initiator)
         participation = participations.filter(user__is_system=True).first()
         self.assertEqual(participation.user_role, ParticipantRole.System)
+
+    def test_create_safe_without_active_payment_method(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True)
+        service = SafeService()
+        with self.assertRaises(ValidationError):
+            service.createSafe(alice, 'foosafe', 1, payment_method.pk)
 
     def test_get_all_payments_for_user(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
@@ -331,7 +354,10 @@ class ServiceTest(TestCase):
                                                       mandate=mandate,
                                                       status=PaymentMethodStatus.ExternalApprovalSuccessful)
         service = PaymentMethodService()
-        service.mandateExternallySumitted("foo_mandate")
+        service.mandateExternallyCreated("foo_mandate")
+        payment_method = PaymentMethod.objects.get(pk=payment_method.pk)
+        self.assertEqual(payment_method.status, PaymentMethodStatus.ExternallyCreated)
+        service.mandateExternallySubmitted("foo_mandate")
         payment_method = PaymentMethod.objects.get(pk=payment_method.pk)
         self.assertEqual(payment_method.status, PaymentMethodStatus.ExternallySubmitted)
         service.mandateExternallyActivated("foo_mandate")
@@ -360,7 +386,9 @@ class ServiceTest(TestCase):
 
     def test_safe_start_with_non_initiator_user(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
-        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
                                    initiator=alice)
         Participation.objects.create(user=alice,
@@ -381,12 +409,12 @@ class ServiceTest(TestCase):
 
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
-        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
-                                  parameters='{"safe_id":1}', job=job, sequence=0)
+        task = DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                         parameters='{"safe_id":1}', job=job, sequence=0)
         service = TaskService()
         result = service.runNextRunnableTask(job.pk)
         self.assertEqual(result, 1)
-        task = DoozezTask.objects.get(pk=1)
+        task = DoozezTask.objects.get(pk=task.pk)
         self.assertEqual(task.status, DoozezTaskStatus.Successful)
 
     def test_task_service_run_with_failure(self):
@@ -488,15 +516,28 @@ class ServiceTest(TestCase):
 
     def test_task_planner_start_safe_tasks(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
-        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
         bob = self.User.objects.create_user(email='bob@user.com', password='foo')
-        bob_payment_method = PaymentMethod.objects.create(user=bob, is_default=True)
+        joe = self.User.objects.create_user(email='joe@user.com', password='foo')
+        bob_payment_method = PaymentMethod.objects.create(user=bob,
+                                                          is_default=True,
+                                                          status=PaymentMethodStatus.ExternallyActivated)
+        joe_payment_method = PaymentMethod.objects.create(user=joe,
+                                                          is_default=True,
+                                                          status=PaymentMethodStatus.ExternallyActivated)
         safe_service = SafeService()
         safe = safe_service.createSafe(alice, 'safebar', 10, payment_method.pk)
         participation = Participation.objects.create(user=bob,
                                                      safe=safe,
                                                      user_role=ParticipantRole.Participant,
                                                      payment_method=bob_payment_method)
+        Participation.objects.create(user=joe,
+                                     safe=safe,
+                                     user_role=ParticipantRole.Participant,
+                                     payment_method=joe_payment_method,
+                                     status=ParticipationStatus.Left)
         job = DoozezJob.objects.create(job_type=DoozezJobType.StartSafe, user=alice)
         planner = TaskPlanner()
         result = planner.createTasksForStartSafe(safe, job)

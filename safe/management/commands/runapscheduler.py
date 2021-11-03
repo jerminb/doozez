@@ -9,11 +9,19 @@ from django_apscheduler.jobstores import DjangoJobStore
 from django_apscheduler.models import DjangoJobExecution
 from django_apscheduler import util
 
+from ...services import JobExecutor, EventExecutor
+
 logger = logging.getLogger(__name__)
+executor = JobExecutor()
+event_executor = EventExecutor()
 
 
 def run_jobs_in_background():
-    print("Testing Background Jobs")
+    logger.info("Running Background Jobs")
+    try:
+        event_executor.executeNextRunnableJob()
+    except Exception as ex:
+        logger.error(ex)
 
 
 # The `close_old_connections` decorator ensures that database connections, that have become

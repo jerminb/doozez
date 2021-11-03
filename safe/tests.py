@@ -2,6 +2,7 @@ import json
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.test import TestCase
 from fcm_django.models import FCMDevice
 from rest_framework.reverse import reverse
@@ -9,7 +10,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from .models import Safe, Invitation, InvitationStatus, PaymentMethod, DoozezJob, DoozezJobType, DoozezTaskStatus, \
-    DoozezTaskType, DoozezTask, Participation, ParticipantRole, SafeStatus, ParticipationStatus
+    DoozezTaskType, DoozezTask, Participation, ParticipantRole, SafeStatus, ParticipationStatus, PaymentMethodStatus
 from .utils import send_notification_to_user
 
 
@@ -102,16 +103,16 @@ class UsersManagersTests(TestCase):
         bob = User.objects.create_user(email='bob@user.com', password='foo')
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         safebob = Safe.objects.create(name='safebob', monthly_payment=1, total_participants=1, initiator=bob)
-        Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        alice_invite = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
         Invitation.objects.create(status=InvitationStatus.Pending, sender=bob, recipient=alice, safe=safebob)
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
-        response = client.get(reverse('invitation-list') + "?safe=1",
+        response = client.get(reverse('invitation-list') + "?safe={}".format(safealice.pk),
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['recipient']['email'], 'bob@user.com')
-        self.assertEqual(response.data[0]['id'], 1)
+        self.assertEqual(response.data[0]['id'], alice_invite.pk)
 
     def test_accept_invitation(self):
         User = get_user_model()
@@ -120,7 +121,9 @@ class UsersManagersTests(TestCase):
         bob = User.objects.create_user(email='bob@user.com', password='foo')
         invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob,
                                                safe=safealice)
-        bob_payment_method = PaymentMethod.objects.create(user=bob, is_default=True)
+        bob_payment_method = PaymentMethod.objects.create(user=bob,
+                                                          is_default=True,
+                                                          status=PaymentMethodStatus.ExternallyActivated)
         data = {
             'action': 'ACCEPT',
             'json_data': '{"payment_method_id":' + str(bob_payment_method.pk) + '}'
@@ -190,7 +193,9 @@ class UsersManagersTests(TestCase):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         User.objects.create_user(email='bob@user.com', password='foo')
-        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
         data = {
             'name': 'foosafe',
             'monthly_payment': '2',
@@ -204,19 +209,21 @@ class UsersManagersTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['status'], 'PPT')
         safe_id = response.data['id']
-        response = client.get(reverse('participation-detail', args=[2]),
-                              content_type='application/json')
-        self.assertEqual(response.data['user']['email'], "alice@user.com")
-        self.assertEqual(response.data['payment_method']['is_default'], True)
         response = client.get(reverse('participation-list') + "?safe={}".format(safe_id),
                               content_type='application/json')
         self.assertEqual(response.data[1]['user']['email'], "alice@user.com")
+        response = client.get(reverse('participation-detail', args=[response.data[1]['id']]),
+                              content_type='application/json')
+        self.assertEqual(response.data['user']['email'], "alice@user.com")
+        self.assertEqual(response.data['payment_method']['is_default'], True)
 
     def test_get_safe_for_participant(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         User.objects.create_user(email='bob@user.com', password='foo')
-        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
         data = {
             'name': 'foosafe',
             'monthly_payment': '2',
@@ -253,7 +260,9 @@ class UsersManagersTests(TestCase):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         User.objects.create_user(email='bob@user.com', password='foo')
-        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
         data = {
             'name': 'foosafe',
             'monthly_payment': '2',
@@ -265,8 +274,12 @@ class UsersManagersTests(TestCase):
                                data=json.dumps(data),
                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        alice_participation = Participation.\
+            objects.\
+            filter(Q(user=alice.pk) & Q(safe=response.data['id'])).\
+            first()
         client.login(username='bob@user.com', password='foo')
-        response = client.get(reverse('participation-detail', args=[1]),
+        response = client.get(reverse('participation-detail', args=[alice_participation.pk]),
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -317,7 +330,9 @@ class UsersManagersTests(TestCase):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         # safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
-        payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
         data = {
             'name': 'foosafe',
             'monthly_payment': '2',
@@ -331,7 +346,7 @@ class UsersManagersTests(TestCase):
         response = client.get(reverse('safe-detail', args=[response.data['id']]),
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['id'], 1)
+        self.assertEqual(response.data['name'], 'foosafe')
 
     # def test_post_payment_methods(self):
     #     User = get_user_model()
