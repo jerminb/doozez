@@ -10,3 +10,4 @@ class SafeConfig(AppConfig):
         import safe.signals
         firebase_admin.initialize_app()
 
+

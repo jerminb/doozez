@@ -138,9 +138,10 @@ class PaymentGatewayClient(object):
 
     def create_payment(self, mandate_id, amount, currency="GBP"):
         idempotency_key = utils.id_generator()
+        gc_amount = int(float(amount))
         payment = self.get_client().payments.create(
             params={
-                "amount": amount,  # amount in pence
+                "amount": gc_amount,  # amount in pence
                 "currency": currency,
                 "links": {
                     "mandate": mandate_id

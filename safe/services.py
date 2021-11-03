@@ -101,6 +101,10 @@ class MandateService(object):
         mandate.submit()
         return mandate
 
+    def getMandateByPaymentMethodId(self, payment_method_id):
+        result = Mandate.objects.filter(payment_method__id=payment_method_id).first()
+        return result
+
 
 class PaymentMethodService(object):
     mandate_service = MandateService()
@@ -256,6 +260,7 @@ class ParticipationService(object):
 
 class PaymentService(object):
     participation_service = ParticipationService()
+    mandate_service = MandateService()
 
     def __init__(self, access_token=None, environment=None):
         if access_token is None or environment is None:
@@ -326,10 +331,10 @@ class TaskService(object):
             task.startRunning()
             task.save()
         try:
-            result = run(task.task_type, **json.loads(task.parameters))
+            run(task.task_type, **json.loads(task.parameters))
             task.finishSuccessfully()
             task.save()
-            return result
+            return task
         except Exception as ex:
             err = sys.exc_info()
             task.exceptions = json.dumps(exception_as_dict(ex, err))
@@ -347,11 +352,12 @@ class ExecutableService(object):
         pass
 
     def getExecutableWithConcurrencyWithQ(self, query):
-        return self.get_query_set().select_for_update().filter(query)
+        result = self.get_query_set().select_for_update().filter(query)
+        return result
 
     def getOrderedPendingExecutable(self):
         return self.getExecutableWithConcurrencyWithQ(Q(status=DoozezExecutableStatus.Created)
-                                                      or Q(status=DoozezExecutableStatus.Running)).order_by(
+                                                      | Q(status=DoozezExecutableStatus.Running)).order_by(
             '-created_on')
 
     def getNextExecutable(self):
@@ -433,6 +439,7 @@ class Executor(object):
 
 
 class JobExecutor(object):
+    logger = logging.getLogger(__name__)
     task_service = TaskService()
     executor = Executor(JobService())
 
@@ -442,14 +449,15 @@ class JobExecutor(object):
     def executeNextRunnableJob(self):
         job = self.executor.runNextExecutable()
         if job is None:
+            self.logger.info("no job found to process")
             return
         try:
-            task = self.task_service.getNextRunableTask(job.pk)
+            task = self.task_service.runNextRunnableTask(job.pk)
             if task is None:
+                self.logger.info("no tasks found to execute for job {}".format(job.pk))
                 self.executor.finalizeSuccessfully(job.pk)
-                return
-            self.task_service.runNextRunnableTask(job.pk)
-        except:
+        except Exception as ex:
+            self.logger.error(ex)
             self.executor.finalizeWithFailure(job.pk)
         return
 

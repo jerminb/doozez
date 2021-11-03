@@ -9,6 +9,8 @@ from django_apscheduler.jobstores import DjangoJobStore
 from django_apscheduler.models import DjangoJobExecution
 from django_apscheduler import util
 
+from ...tasks import add_tasks
+
 from ...services import JobExecutor, EventExecutor
 
 logger = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ event_executor = EventExecutor()
 def run_jobs_in_background():
     logger.info("Running Background Jobs")
     try:
-        event_executor.executeNextRunnableJob()
+        executor.executeNextRunnableJob()
     except Exception as ex:
         logger.error(ex)
 
@@ -43,6 +45,7 @@ class Command(BaseCommand):
     help = "Runs APScheduler."
 
     def handle(self, *args, **options):
+        add_tasks()
         scheduler = BlockingScheduler(timezone=settings.TIME_ZONE)
         scheduler.add_jobstore(DjangoJobStore(), "default")
         scheduler.add_job(

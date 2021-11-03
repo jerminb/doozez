@@ -66,7 +66,7 @@ class DoozezExecutable(TimeStampedModel):
         protected=True,
     )
 
-    @transition(field=status, source=[DoozezExecutableStatus.Created],
+    @transition(field=status, source=[DoozezExecutableStatus.Created, DoozezExecutableStatus.Running],
                 target=DoozezExecutableStatus.Running)
     def startRunning(self):
         pass
@@ -216,7 +216,7 @@ class PaymentMethod(models.Model):
     )
     user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
     is_default = models.BooleanField(default=False)
-    mandate = models.ForeignKey(Mandate, on_delete=models.DO_NOTHING, null=True)
+    mandate = models.ForeignKey(Mandate, on_delete=models.DO_NOTHING, null=True, related_query_name='payment_method')
     name = models.CharField(max_length=500, null=True, blank=True)
 
     @transition(field=status, source=[PaymentMethodStatus.PendingExternalApproval],
