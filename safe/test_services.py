@@ -413,7 +413,7 @@ class ServiceTest(TestCase):
                                          parameters='{"safe_id":1}', job=job, sequence=0)
         service = TaskService()
         result = service.runNextRunnableTask(job.pk)
-        self.assertEqual(result, 1)
+        self.assertEqual(result.pk, task.pk)
         task = DoozezTask.objects.get(pk=task.pk)
         self.assertEqual(task.status, DoozezTaskStatus.Successful)
 
@@ -448,11 +448,11 @@ class ServiceTest(TestCase):
                                   parameters='{"sequence":10}', job=job, sequence=10)
         DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
                                   parameters='{"sequence":15}', job=job, sequence=15)
-        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
-                                  parameters='{"sequence":5}', job=job, sequence=5)
+        task = DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                         parameters='{"sequence":5}', job=job, sequence=5)
         service = TaskService()
         result = service.runNextRunnableTask(job.pk)
-        self.assertEqual(result, 5)
+        self.assertEqual(result.pk, task.pk)
 
     def test_task_duplicate_sequence(self):
         clear()
@@ -467,11 +467,11 @@ class ServiceTest(TestCase):
                                   parameters='{"sequence":0.1}', job=job, sequence=0)
         DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
                                   parameters='{"sequence":0.2}', job=job, sequence=0)
-        DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
-                                  parameters='{"sequence":0.3}', job=job, sequence=0)
+        task = DoozezTask.objects.create(status=DoozezTaskStatus.Pending, task_type=DoozezTaskType.Draw,
+                                         parameters='{"sequence":0.3}', job=job, sequence=0)
         service = TaskService()
         result = service.runNextRunnableTask(job.pk)
-        self.assertEqual(result, 0.3)
+        self.assertEqual(result.pk, task.pk)
 
     def test_job_service_run(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')

@@ -8,9 +8,9 @@ from django.db import transaction
 from djmoney.money import Money
 
 from .client_interfaces import PaymentGatewayClient
-from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, PaymentMethodStatus, \
+from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, \
     ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
-    Payment, DoozezTaskType, DoozezJob, DoozezJobType, DoozezJobStatus, GCEvent, Event, DoozezExecutableStatus
+    Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -209,6 +209,12 @@ class ParticipationService(object):
 
     def getParticipationWithQ(self, query):
         return Participation.objects.filter(query)
+
+    def getSystemParticipation(self, safe_id):
+        return self.getParticipationWithQ(Q(safe__id=safe_id) & Q(user_role=ParticipantRole.System)).first()
+
+    def getNonSystemParticipation(self, safe_id):
+        return self.getParticipationWithQ(Q(safe__id=safe_id) & ~Q(user_role=ParticipantRole.System)).all()
 
     def getParticipationForSafe(self, safe_id):
         return self.getParticipationWithQ(Q(safe__id=safe_id)).all()

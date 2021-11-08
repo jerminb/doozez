@@ -1,10 +1,11 @@
 import os
 import random
 
+from django.db.models import Q
 from rest_framework.exceptions import ValidationError
 
 from .decorators import doozez_task
-from .models import DoozezTaskType, PaymentMethodStatus
+from .models import DoozezTaskType, PaymentMethodStatus, ParticipantRole
 from .services import ParticipationService, PaymentService
 
 participation_service = ParticipationService()
@@ -12,16 +13,21 @@ payment_service = PaymentService(os.environ['GC_ACCESS_TOKEN'], os.environ['GC_E
 
 
 def draw(safe_id, parti_service):
-    participations = list(parti_service.getParticipationForSafe(safe_id))
+    system_participation = parti_service.getSystemParticipation(safe_id)
+    if system_participation is None:
+        raise ValidationError("system participation not found")
+    system_participation.win_sequence = 0
+    system_participation.save()
+    participations = list(parti_service.getNonSystemParticipation(safe_id))
     if participations is None:
         raise IndexError("no participation found")
     random.shuffle(participations)
     for i in range(len(participations)):
         if participations[i].payment_method.status != PaymentMethodStatus.ExternallyActivated:
             raise ValidationError("payment-method {} is not approved yet".format(participations[i].payment_method.pk))
-        participations[i].win_sequence = i
+        participations[i].win_sequence = i + 1
         participations[i].save()
-    return participations
+    return [system_participation, *participations]
 
 
 def create_payment_for_participant(participation_id, amount, currency, pay_service):

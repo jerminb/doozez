@@ -4,7 +4,7 @@ from unittest.mock import create_autospec
 
 from django.test import TestCase
 from .decorators import doozez_task, run, clear
-from .models import DoozezTaskType, PaymentMethodStatus
+from .models import DoozezTaskType, PaymentMethodStatus, ParticipantRole
 from .services import ParticipationService, PaymentService
 from .tasks import draw, create_payment_for_participant
 
@@ -25,18 +25,29 @@ class DoozezTaskTest(TestCase):
         clear()
 
         class MockedPaymentMethod(object):
-            status = PaymentMethodStatus.ExternalApprovalSuccessful
+            status = PaymentMethodStatus.ExternallyActivated
+
+        class MockedSystemParticipation(object):
+            win_sequence = -1
+            user_role = ParticipantRole.System
+            payment_method = MockedPaymentMethod()
+
+            def save(self):
+                pass
 
         class MockedParticipation(object):
             win_sequence = -1
+            user_role = ParticipantRole.Participant
             payment_method = MockedPaymentMethod()
 
             def save(self):
                 pass
         mock_service = create_autospec(ParticipationService)
         expected_participations = [MockedParticipation() for i in range(10)]
-        mock_service.getParticipationForSafe.return_value = expected_participations
+        mock_service.getSystemParticipation.return_value = MockedSystemParticipation()
+        mock_service.getNonSystemParticipation.return_value = expected_participations
         participations = draw(safe_id=1, parti_service=mock_service)
+        self.assertEqual(participations[0].win_sequence, 0)
         self.assertGreater(participations[5].win_sequence, 0)
 
     def test_create_payment_for_participant(self):
