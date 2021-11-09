@@ -181,18 +181,22 @@ class PaymentMethodService(object):
     def mandateExternallyActivated(self, mandate_external_id):
         payment_method = self.getPaymentMethodsWithQ(Q(mandate__mandate_external_id=mandate_external_id)).first()
         self.logger.info("activating paymentmethod {}".format(payment_method.pk))
+        payment_method.mandate.activate()
+        payment_method.mandate.save()
         payment_method.activatedExternally()
         payment_method.save()
 
     def mandateExternallyCreated(self, mandate_external_id):
         payment_method = self.getPaymentMethodsWithQ(Q(mandate__mandate_external_id=mandate_external_id)).first()
-        self.logger.info("activating paymentmethod {}".format(payment_method.pk))
+        self.logger.info("creating paymentmethod {}".format(payment_method.pk))
         payment_method.createdExternally()
         payment_method.save()
 
     def mandateExternallySubmitted(self, mandate_external_id):
         payment_method = self.getPaymentMethodsWithQ(Q(mandate__mandate_external_id=mandate_external_id)).first()
-        self.logger.info("activating paymentmethod {}".format(payment_method.pk))
+        self.logger.info("submitting paymentmethod {}".format(payment_method.pk))
+        payment_method.mandate.submit()
+        payment_method.mandate.save()
         payment_method.submittedExternally()
         payment_method.save()
 

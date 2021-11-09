@@ -168,7 +168,7 @@ class Event(DoozezExecutable):
 
 class MandateStatus(models.TextChoices):
     PendingCustomerApproval = 'pending_customer_approval', _('pending_customer_approval')
-    PendingSubmission = 'pending_submission', _('pending_submission')
+    Created = 'created', _('Created')
     Submitted = 'submitted', _('submitted')
     Active = 'active', _('active')
     Failed = 'failed', _('failed')
@@ -180,7 +180,7 @@ class MandateStatus(models.TextChoices):
 class Mandate(models.Model):
     status = FSMField(
         choices=MandateStatus.choices,
-        default=MandateStatus.PendingSubmission,
+        default=MandateStatus.Created,
         protected=True,
     )
     scheme = models.TextField()
@@ -192,7 +192,7 @@ class Mandate(models.Model):
         # signal PaymentMethod
         pass
 
-    @transition(field=status, source=[MandateStatus.PendingSubmission],
+    @transition(field=status, source=[MandateStatus.Created],
                 target=MandateStatus.Submitted)
     def submit(self):
         # signal PaymentMethod

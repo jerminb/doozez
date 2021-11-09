@@ -268,7 +268,7 @@ class ServiceTest(TestCase):
         expected_mandate_dict = {
             "id": "foo_mandate",
             "scheme": "bacs",
-            "status": "pending_submission"
+            "status": "created"
         }
         mock_gc_services.get.return_value = namedtuple("GCMandate", expected_mandate_dict.keys())(
             *expected_mandate_dict.values())
@@ -280,7 +280,7 @@ class ServiceTest(TestCase):
         payment_method_service.approveWithExternalSuccessWithFlowId(flow_id="foo")
         payment_methods = payment_method_service.getAllPaymentMethodsForUser(user=alice)
         self.assertEqual(payment_methods[0].status, PaymentMethodStatus.ExternalApprovalSuccessful)
-        self.assertEqual(payment_methods[0].mandate.status, MandateStatus.PendingSubmission)
+        self.assertEqual(payment_methods[0].mandate.status, MandateStatus.Created)
 
     @mock.patch('safe.client_interfaces.PaymentGatewayClient')
     def test_create_payment(self, mock_ci):
@@ -360,6 +360,7 @@ class ServiceTest(TestCase):
         service.mandateExternallySubmitted("foo_mandate")
         payment_method = PaymentMethod.objects.get(pk=payment_method.pk)
         self.assertEqual(payment_method.status, PaymentMethodStatus.ExternallySubmitted)
+        self.assertEqual(payment_method.mandate.status, MandateStatus.Submitted)
         service.mandateExternallyActivated("foo_mandate")
         payment_method = PaymentMethod.objects.get(pk=payment_method.pk)
         self.assertEqual(payment_method.status, PaymentMethodStatus.ExternallyActivated)
