@@ -1,6 +1,7 @@
 import json
 import logging
 import sys
+from enum import Enum
 from typing import Union
 
 from django.contrib.auth import get_user_model
@@ -10,13 +11,26 @@ from djmoney.money import Money
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, \
     ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
-    Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus
+    Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus, DoozezUser
 from .decorators import run
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 
-from .utils import exception_as_dict
+from .utils import exception_as_dict, send_notification_to_user_from_template
+
+
+class EventType(Enum):
+    InvitationCreated = 1
+
+
+class NotificationService(object):
+    def __init__(self):
+        pass
+
+    def notify_invitation_created(self, recipient: DoozezUser, sender: DoozezUser, safe: Safe) -> None:
+        send_notification_to_user_from_template(recipient.pk, 'Invitation', 'notification/invite.txt', '',
+                                                {'user': sender.first_name, 'safe': safe.names})
 
 
 class UserService(object):
@@ -28,8 +42,18 @@ class UserService(object):
 
 
 class InvitationService(object):
-    def __init__(self):
-        pass
+    logger = logging.getLogger(__name__)
+
+    def __init__(self, notification_service=None):
+        self.notification_service = notification_service
+
+    def try_notify(self, event_type: EventType, recipient: DoozezUser, sender: DoozezUser, safe: Safe) -> None:
+        if self.notification_service is not None:
+            try:
+                if event_type is EventType.InvitationCreated:
+                    self.notification_service.notify_invitation_created(recipient, sender, safe)
+            except Exception as ex:
+                self.logger.warning("failed to send notification for {}".format(event_type))
 
     def createInvitation(self, current_user, recipient, safe):
         if recipient.email == current_user.email:
@@ -43,6 +67,7 @@ class InvitationService(object):
             raise ValidationError("an existing invitation is found for user {} for safe {}", recipient, safe.pk)
         invitation = Invitation(sender=current_user, recipient=recipient, safe=safe)
         invitation.save()
+        self.try_notify(EventType.InvitationCreated, recipient, current_user, safe)
         return invitation
 
     def acceptInvitation(self, invitation, payment_method_id, current_user):

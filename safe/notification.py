@@ -1,7 +1,7 @@
 from fcm_django.models import FCMDevice
 
 
-class NotificationService(object):
+class NotificationProvider(object):
     def __init__(self):
         pass
 

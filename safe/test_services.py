@@ -1,17 +1,22 @@
 import os
 from collections import namedtuple
+from unittest.mock import create_autospec
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from unittest import mock
+
+from . import utils
 from .decorators import clear, doozez_task
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
     MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, SafeStatus, \
     ParticipationStatus, Mandate, PaymentStatus, Invitation, DoozezExecutableStatus, Event
+from .notification import NotificationProvider
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
-    ParticipationService, PaymentService, TaskPlanner, JobService, JobExecutor, EventExecutor, EventService
+    ParticipationService, PaymentService, TaskPlanner, JobService, JobExecutor, EventExecutor, EventService, \
+    NotificationService, EventType
 
 
 class ServiceTest(TestCase):
@@ -62,6 +67,24 @@ class ServiceTest(TestCase):
         self.assertEqual(invitation.status, InvitationStatus.Accepted)
         self.assertEqual(participation.user.pk, bob.pk)
         self.assertEqual(participation.user_role, ParticipantRole.Participant)
+
+    def test_accept_invite_with_notification(self):
+        mock_service = create_autospec(NotificationService)
+        mock_service.notify_invitation_created.return_value = None
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        payment_method = PaymentMethod.objects.create(user=bob,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
+        service = InvitationService(mock_service)
+        invitation = service.createInvitation(alice, bob, safe)
+        invitation = service.acceptInvitation(invitation, payment_method.pk, bob)
+        participation = Participation.objects.first()
+        self.assertEqual(invitation.status, InvitationStatus.Accepted)
+        self.assertEqual(participation.user.pk, bob.pk)
+        self.assertEqual(participation.user_role, ParticipantRole.Participant)
+        mock_service.notify_invitation_created.assert_called_once_with(bob, alice, safe)
 
     def test_accept_invite_with_no_payment_method(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
@@ -608,3 +631,24 @@ class ServiceTest(TestCase):
         executor.payment_confirmed(bob_payment.pk)
         safe = Safe.objects.get(pk=safe.pk)
         self.assertEqual(safe.status, SafeStatus.Started)
+
+    def test_render_template(self):
+        result = utils.render_template_with_context('notification/invite.txt', {'user': 'foo', 'safe': 'bar'})
+        expected = "foo has invited you to bar"
+        self.assertEqual(expected, result)
+
+    def test_send_notification(self):
+        class MockedDevice(object):
+
+            def send_message(self, message):
+                return message
+
+        notification_provider = utils.notification_provider
+        mock_service = create_autospec(NotificationProvider)
+        mock_service.getDevicesForUser.return_value = MockedDevice()
+        utils.notification_provider = mock_service
+        result = utils.send_notification_to_user_from_template(1, 'title', 'notification/invite.txt', '', {'user': 'foo', 'safe': 'bar'})
+        expected = "foo has invited you to bar"
+        self.assertEqual(expected, result.notification.body)
+        utils.notification_provider = notification_provider
+

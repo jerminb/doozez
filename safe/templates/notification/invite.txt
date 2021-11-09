@@ -1,0 +1,1 @@
+{{user}} has invited you to {{safe}}

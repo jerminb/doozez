@@ -2,12 +2,13 @@ import random
 import string
 import traceback
 
+from django import template
 from django.core.exceptions import ValidationError
 from firebase_admin.messaging import Notification, Message
 
-from .notification import NotificationService
+from .notification import NotificationProvider
 
-notification_service = NotificationService()
+notification_provider = NotificationProvider()
 
 
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
@@ -26,8 +27,18 @@ def exception_as_dict(ex, err):
                 traceback=tb)
 
 
+def render_template_with_context(template_path, context):
+    t = template.loader.get_template(template_path)
+    return t.render(context)
+
+
+def send_notification_to_user_from_template(user_id, title, template_path, image, context):
+    message = render_template_with_context(template_path, context)
+    return send_notification_to_user(user_id, title, message, image)
+
+
 def send_notification_to_user(user_id, title, message, image):
-    device = notification_service.getDevicesForUser(user_id)
+    device = notification_provider.getDevicesForUser(user_id)
     if device is None:
         raise ValidationError("no device found for user_id {}".format(user_id))
     result = device.send_message(Message(
