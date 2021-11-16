@@ -20,6 +20,7 @@ from rest_framework import viewsets
 from rest_framework import permissions, status
 from rest_framework.decorators import action
 from django.core.exceptions import ValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 from .permissions import IsOwner
@@ -110,7 +111,15 @@ class PasswordResetView(TemplateView):
         return render(request, 'passwordreset/password_reset_done.html')
 
 
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 100
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
+
+
 class OwnerViewSet(viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
+
     def get_owner_filter(self):
         pass
 
@@ -246,9 +255,15 @@ class InvitationViewSet(OwnerViewSet):
         for the currently authenticated user.
         """
         safe = self.request.query_params.get('safe')
+        recipient = self.request.query_params.get('recipient')
+        invitation_status = self.request.query_params.get('status')
         result = super().get_queryset()
         if safe is not None:
             result = result.filter(safe__id=safe)
+        if recipient is not None:
+            result = result.filter(recipient__id=recipient)
+        if invitation_status is not None:
+            result = result.filter(status=invitation_status)
         return result
 
     def create(self, request):

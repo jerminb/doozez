@@ -80,7 +80,7 @@ class UsersManagersTests(TestCase):
         response = client.get(reverse('invitation-list'),
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data['count'], 1)
 
     def test_get_invitations_for_sender_recipient(self):
         User = get_user_model()
@@ -95,7 +95,7 @@ class UsersManagersTests(TestCase):
         response = client.get(reverse('invitation-list'),
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(response.data['count'], 2)
 
     def test_get_invitation_for_safe_id(self):
         User = get_user_model()
@@ -110,9 +110,41 @@ class UsersManagersTests(TestCase):
         response = client.get(reverse('invitation-list') + "?safe={}".format(safealice.pk),
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['recipient']['email'], 'bob@user.com')
-        self.assertEqual(response.data[0]['id'], alice_invite.pk)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['recipient']['email'], 'bob@user.com')
+        self.assertEqual(response.data['results'][0]['id'], alice_invite.pk)
+
+    def test_get_pending_invitation_for_recipient(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        bob = User.objects.create_user(email='bob@user.com', password='foo')
+        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        safebob = Safe.objects.create(name='safebob', monthly_payment=1, total_participants=1, initiator=bob)
+        alice_invite = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        Invitation.objects.create(status=InvitationStatus.Pending, sender=bob, recipient=alice, safe=safebob)
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('invitation-list') + "?recipient={}&status={}".format(bob.pk, 'PND'),
+                              content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['recipient']['email'], 'bob@user.com')
+        self.assertEqual(response.data['results'][0]['id'], alice_invite.pk)
+
+    def test_get_unknown_status_invitation(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        bob = User.objects.create_user(email='bob@user.com', password='foo')
+        safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
+        safebob = Safe.objects.create(name='safebob', monthly_payment=1, total_participants=1, initiator=bob)
+        Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        Invitation.objects.create(status=InvitationStatus.Pending, sender=bob, recipient=alice, safe=safebob)
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('invitation-list') + "?status={}".format(bob.pk, 'UNKNOWN'),
+                              content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['count'], 0)
 
     def test_accept_invitation(self):
         User = get_user_model()
@@ -238,7 +270,7 @@ class UsersManagersTests(TestCase):
         client.login(username='bob@user.com', password='foo')
         response = client.get(reverse('safe-list'),
                               content_type='application/json')
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(response.data['count'], 0)
 
     def test_get_safe_for_declined_invitation(self):
         User = get_user_model()
@@ -251,7 +283,7 @@ class UsersManagersTests(TestCase):
         client.login(username='bob@user.com', password='foo')
         response = client.get(reverse('safe-list'),
                               content_type='application/json')
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(response.data['count'], 0)
         response = client.get(reverse('safe-detail', args=[safealice.pk]),
                               content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -292,7 +324,7 @@ class UsersManagersTests(TestCase):
         client.login(username='bob@user.com', password='foo')
         response = client.get(reverse('paymentmethod-list'),
                               content_type='application/json')
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(response.data['count'], 0)
 
     def test_post_participants(self):
         User = get_user_model()

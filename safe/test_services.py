@@ -53,6 +53,17 @@ class ServiceTest(TestCase):
         invitation = service.createInvitation(alice, bob, safe)
         self.assertEqual(invitation.status, InvitationStatus.Pending)
 
+    def test_get_invite_for_user(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        service = InvitationService()
+        service.createInvitation(alice, bob, safe)
+        alice_invites = service.getPendingInvitationsForUser(alice)
+        self.assertEqual(len(alice_invites), 0)
+        bob_invites = service.getPendingInvitationsForUser(bob)
+        self.assertEqual(len(bob_invites), 1)
+
     def test_accept_invite(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         bob = self.User.objects.create_user(email='bob@user.com', password='foo')
@@ -110,11 +121,11 @@ class ServiceTest(TestCase):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         bob = self.User.objects.create_user(email='bob@user.com', password='foo')
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
-        PaymentMethod.objects.create(user=bob, is_default=True)
+        payment_method = PaymentMethod.objects.create(user=bob, is_default=True)
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
         with self.assertRaises(ValidationError):
-            service.acceptInvitation(invitation, 1, alice)
+            service.acceptInvitation(invitation, payment_method.pk, alice)
 
     def test_remove_invite(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
@@ -309,8 +320,12 @@ class ServiceTest(TestCase):
     def test_create_payment(self, mock_ci):
         expected_dict = {
             "id": "foo",
+            "status": "pending_submission",
+            "charge_date": "2021-11-10"
         }
         mock_ci.create_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
+            *expected_dict.values())
+        mock_ci.get_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
             *expected_dict.values())
         payment_service = PaymentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
         payment_service.payment_gate_way_client = mock_ci
@@ -329,13 +344,46 @@ class ServiceTest(TestCase):
                                                 'description')
         self.assertEqual(payment.status, PaymentStatus.PendingSubmission)
         self.assertEqual(str(payment.amount), '£10.00')
+        self.assertEqual(str(payment.charge_date), '2021-11-10')
+
+    @mock.patch('safe.client_interfaces.PaymentGatewayClient')
+    def test_create_cancelled_payment(self, mock_ci):
+        expected_dict = {
+            "id": "foo",
+            "status": "cancelled",
+            "charge_date": "2021-11-10"
+        }
+        mock_ci.create_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
+            *expected_dict.values())
+        mock_ci.get_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
+            *expected_dict.values())
+        payment_service = PaymentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
+        payment_service.payment_gate_way_client = mock_ci
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        mandate = Mandate.objects.create(mandate_external_id="foo_mandate")
+        payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=mandate)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice)
+        participation = Participation.objects.create(user=alice,
+                                                     safe=safe,
+                                                     user_role=ParticipantRole.Initiator,
+                                                     payment_method=payment_method)
+        with self.assertRaises(ValidationError):
+            payment_service.createPayment(participation.pk,
+                                          10.0,
+                                          'GBP',
+                                          'description')
 
     @mock.patch('safe.client_interfaces.PaymentGatewayClient')
     def test_get_pending_payments(self, mock_ci):
         expected_dict = {
             "id": "foo",
+            "status": "pending_submission",
+            "charge_date": "2021-11-10"
         }
         mock_ci.create_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
+            *expected_dict.values())
+        mock_ci.get_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
             *expected_dict.values())
         payment_service = PaymentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
         payment_service.payment_gate_way_client = mock_ci
@@ -594,8 +642,12 @@ class ServiceTest(TestCase):
     def test_payment_confirmed(self, mock_ci):
         expected_dict = {
             "id": "foo",
+            "status": "pending_submission",
+            "charge_date": "2021-11-10"
         }
         mock_ci.create_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
+            *expected_dict.values())
+        mock_ci.get_payment.return_value = namedtuple("GCPayment", expected_dict.keys())(
             *expected_dict.values())
         payment_service = PaymentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
         payment_service.payment_gate_way_client = mock_ci
@@ -647,8 +699,8 @@ class ServiceTest(TestCase):
         mock_service = create_autospec(NotificationProvider)
         mock_service.getDevicesForUser.return_value = MockedDevice()
         utils.notification_provider = mock_service
-        result = utils.send_notification_to_user_from_template(1, 'title', 'notification/invite.txt', '', {'user': 'foo', 'safe': 'bar'})
+        result = utils.send_notification_to_user_from_template(1, 'title', 'notification/invite.txt', '',
+                                                               {'user': 'foo', 'safe': 'bar'})
         expected = "foo has invited you to bar"
         self.assertEqual(expected, result.notification.body)
         utils.notification_provider = notification_provider
-

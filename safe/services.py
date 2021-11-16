@@ -111,6 +111,9 @@ class InvitationService(object):
     def getPendingInvitationsForSafe(self, safe):
         return Invitation.objects.filter(Q(status=InvitationStatus.Pending) & Q(safe=safe)).all()
 
+    def getPendingInvitationsForUser(self, user):
+        return Invitation.objects.filter(Q(status=InvitationStatus.Pending) & Q(recipient=user)).all()
+
 
 class MandateService(object):
     def __init__(self):
@@ -311,9 +314,13 @@ class PaymentService(object):
             participation.payment_method.mandate.mandate_external_id,
             amount,
             currency)
+        refreshed_external_payment = self.payment_gate_way_client.get_payment(external_payment.id)
+        if refreshed_external_payment.status == 'cancelled':
+            raise ValidationError("payment with external-id {} was cancelled immediately".format(external_payment.id))
         payment = Payment.objects.create(participation=participation,
                                          amount=Money(amount, currency),
                                          description=description,
+                                         charge_date = refreshed_external_payment.charge_date,
                                          external_id=external_payment.id)
         return payment
 
