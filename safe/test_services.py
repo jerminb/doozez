@@ -12,11 +12,11 @@ from .decorators import clear, doozez_task
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
     MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, SafeStatus, \
-    ParticipationStatus, Mandate, PaymentStatus, Invitation, DoozezExecutableStatus, Event
+    ParticipationStatus, Mandate, PaymentStatus, Invitation, DoozezExecutableStatus, Event, Installment
 from .notification import NotificationProvider
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
     ParticipationService, PaymentService, TaskPlanner, JobService, JobExecutor, EventExecutor, EventService, \
-    NotificationService, EventType
+    NotificationService, EventType, InstallmentService
 
 
 class ServiceTest(TestCase):
@@ -392,7 +392,7 @@ class ServiceTest(TestCase):
         alice_mandate = Mandate.objects.create(mandate_external_id="alice_mandate")
         alice_payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=alice_mandate)
         bob_mandate = Mandate.objects.create(mandate_external_id="bob_mandate")
-        bob_payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=bob_mandate)
+        bob_payment_method = PaymentMethod.objects.create(user=bob, is_default=True, mandate=bob_mandate)
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
                                    initiator=alice)
         alice_participation = Participation.objects.create(user=alice,
@@ -435,6 +435,39 @@ class ServiceTest(TestCase):
         service.mandateExternallyActivated("foo_mandate")
         payment_method = PaymentMethod.objects.get(pk=payment_method.pk)
         self.assertEqual(payment_method.status, PaymentMethodStatus.ExternallyActivated)
+
+    @mock.patch('safe.client_interfaces.PaymentGatewayClient')
+    def test_create_installment(self, mock_ci):
+        expected_dict = {
+            "id": "foo",
+            "name": "safebar-installments",
+        }
+        mock_ci.create_installment_with_schedule.return_value = namedtuple("GCInstalmentSchedule",
+                                                                           expected_dict.keys())(
+            *expected_dict.values())
+        installment_service = InstallmentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
+        installment_service.payment_gate_way_client = mock_ci
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        bob = self.User.objects.create_user(email='bob@user.com', password='foo')
+        alice_mandate = Mandate.objects.create(mandate_external_id="alice_mandate")
+        alice_payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=alice_mandate)
+        bob_mandate = Mandate.objects.create(mandate_external_id="bob_mandate")
+        bob_payment_method = PaymentMethod.objects.create(user=bob, is_default=True, mandate=bob_mandate)
+        safe = Safe.objects.create(name='safebar', monthly_payment=10, total_participants=2,
+                                   initiator=alice)
+        Participation.objects.create(user=alice,
+                                     safe=safe,
+                                     user_role=ParticipantRole.Initiator,
+                                     payment_method=alice_payment_method)
+        Participation.objects.create(user=bob,
+                                     safe=safe,
+                                     user_role=ParticipantRole.Participant,
+                                     payment_method=bob_payment_method)
+        installments = installment_service.createInstallmentForSafe(safe.pk, 10, 'GBP')
+        self.assertEqual(len(installments), 2)
+        self.assertEqual(installments[0].name, 'safebar-installments')
+        saved_installments = Installment.objects.filter(safe=safe.pk).all()
+        self.assertEqual(len(saved_installments), 2)
 
     def test_safe_start(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')

@@ -344,6 +344,27 @@ class Participation(models.Model):
         pass
 
 
+class InstallmentStatus(models.TextChoices):
+    Pending = 'pending', _('Pending')
+    Active = 'active', _('Active')
+    CreationFailed = 'creation_failed', _('completed')
+    Failed = 'failed', _('Failed')
+    Cancelled = 'cancelled', _('Cancelled')
+    Errored = 'errored', _('Errored')
+
+
+class Installment(TimeStampedModel):
+    status = FSMField(
+        choices=InstallmentStatus.choices,
+        default=InstallmentStatus.Pending,
+        protected=True,
+    )
+    external_id = models.TextField(null=True, blank=True)
+    name = models.TextField()
+    payment_method = models.ForeignKey(PaymentMethod, on_delete=models.CASCADE, related_name='installment')
+    safe = models.ForeignKey(Safe, on_delete=models.CASCADE, related_name='installment')
+
+
 class PaymentStatus(models.TextChoices):
     PendingSubmission = 'pending_submission', _('PendingSubmission')
     Submitted = 'submitted', _('Submitted')

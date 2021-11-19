@@ -174,7 +174,7 @@ class PaymentGatewayClient(object):
                 "total_amount": total_amount,  # total amount in pence
                 "app_fee": app_fee,
                 "currency": currency,
-                "schedule": {
+                "instalments": {
                     "start_date": start_date,
                     "interval_unit": interval_unit,
                     "interval": interval,

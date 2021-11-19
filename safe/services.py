@@ -1,9 +1,11 @@
+import datetime
 import json
 import logging
 import sys
 from enum import Enum
 from typing import Union
 
+from dateutil.relativedelta import relativedelta
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from djmoney.money import Money
@@ -11,7 +13,7 @@ from djmoney.money import Money
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, \
     ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
-    Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus, DoozezUser
+    Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus, DoozezUser, Installment
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -629,12 +631,21 @@ class InstallmentService(object):
         amounts = []
         for i in range(total_installments):
             amounts.append(safe.monthly_payment * 100)  # in Pence
+        installments = []
         for participant in participants:
-            self.payment_gate_way_client. \
+            gc_installment = self.payment_gate_way_client. \
                 create_installment_with_schedule("{}-installments".format(safe.name),
                                                  participant.payment_method.mandate.mandate_external_id,
                                                  total_amount, app_fee, amounts,
-                                                 currency)
+                                                 currency,
+                                                 datetime.datetime.now() + relativedelta(months=+1),
+                                                 1)
+            installment = Installment.objects.create(external_id=gc_installment.id,
+                                                     name=gc_installment.name,
+                                                     payment_method=participant.payment_method,
+                                                     safe=safe)
+            installments.append(installment)
+        return installments
 
 
 class EventExecutor(object):
@@ -665,6 +676,9 @@ class EventExecutor(object):
             self.logger.info("completeStartSafe failed: {}".format(validation_error))
         return payment
 
+    def instalment_created(self, instalment_id):
+        pass
+
     def executeNextRunnableJob(self):
         result = None
         event = self.executor.runNextExecutable()
@@ -679,6 +693,9 @@ class EventExecutor(object):
             },
             "payments": {
                 "confirmed": self.payment_confirmed,
+            },
+            "instalment_schedules": {
+                "created": self.instalment_created,
             }
         }
         try:
