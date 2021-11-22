@@ -48,6 +48,23 @@ class GCPayment(object):
         self.idempotency_key = idempotency_key
 
 
+class GCInstalment(object):
+    id = ""
+    created_at = ""
+    status = ""
+    currency = ""
+    total_amount = 0.0
+    payments = []
+
+    def __init__(self, id, created_at, status, currency, total_amount, payments):
+        self.id = id
+        self.created_at = created_at
+        self.status = status
+        self.currency = currency
+        self.total_amount = total_amount
+        self.payments = payments
+
+
 class GCMandate(object):
     id = ""
     scheme = ""
@@ -165,8 +182,17 @@ class PaymentGatewayClient(object):
                          currency=payment.currency,
                          mandate=payment.links.mandate, charge_date=payment.charge_date)
 
-    def create_installment_with_schedule(self, name, mandate_id, total_amount, app_fee, amounts,
-                                         currency, start_date, interval, interval_unit='monthly'):
+    def get_instalment(self, instalment_id):
+        instalment = self.get_client().instalment_schedules.get(instalment_id)
+        return GCInstalment(id=instalment.id,
+                            created_at=instalment.created_at,
+                            status=instalment.status,
+                            currency=instalment.currency,
+                            total_amount=instalment.total_amount,
+                            payments=instalment.links.payments)
+
+    def create_instalment_with_schedule(self, name, mandate_id, total_amount, app_fee, amounts,
+                                        currency, start_date, interval, interval_unit='monthly'):
         idempotency_key = utils.id_generator()
         instalment_schedule = self.get_client().instalment_schedules.create_with_schedule(
             params={

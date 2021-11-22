@@ -13,7 +13,7 @@ from djmoney.money import Money
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, \
     ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
-    Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus, DoozezUser, Installment
+    Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus, DoozezUser, Instalment
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -322,8 +322,16 @@ class PaymentService(object):
         payment = Payment.objects.create(participation=participation,
                                          amount=Money(amount, currency),
                                          description=description,
-                                         charge_date = refreshed_external_payment.charge_date,
+                                         charge_date=refreshed_external_payment.charge_date,
                                          external_id=external_payment.id)
+        return payment
+
+    def createInternalPayment(self, participation, amount, currency, description, charge_date, external_id):
+        payment = Payment.objects.create(participation=participation,
+                                         amount=Money(amount, currency),
+                                         description=description,
+                                         charge_date=charge_date,
+                                         external_id=external_id)
         return payment
 
     def getPendingConfirmationPaymentsForSafe(self, safe_id):
@@ -613,7 +621,8 @@ class SafeService(object):
         return safe, None
 
 
-class InstallmentService(object):
+class InstalmentService(object):
+    logger = logging.getLogger(__name__)
     participation_service = ParticipationService()
 
     def __init__(self, access_token=None, environment=None):
@@ -622,30 +631,54 @@ class InstallmentService(object):
         else:
             self.payment_gate_way_client = PaymentGatewayClient(access_token, environment)
         self.safe_service = SafeService(access_token, environment)
+        self.payment_service = PaymentService(access_token, environment)
 
-    def createInstallmentForSafe(self, safe_id, app_fee, currency):
+    def createInstalmentForSafe(self, safe_id, app_fee, currency):
         participants = self.participation_service.getParticipationForSafe(safe_id)
         safe = self.safe_service.getSafeWithId(safe_id)
-        total_installments = len(participants) - 1
-        total_amount = safe.monthly_payment * total_installments * 100  # in Pence
+        total_instalments = len(participants) - 1
+        total_amount = safe.monthly_payment * total_instalments * 100  # in Pence
         amounts = []
-        for i in range(total_installments):
+        for i in range(total_instalments):
             amounts.append(safe.monthly_payment * 100)  # in Pence
-        installments = []
+        instalments = []
         for participant in participants:
-            gc_installment = self.payment_gate_way_client. \
-                create_installment_with_schedule("{}-installments".format(safe.name),
-                                                 participant.payment_method.mandate.mandate_external_id,
-                                                 total_amount, app_fee, amounts,
-                                                 currency,
-                                                 datetime.datetime.now() + relativedelta(months=+1),
-                                                 1)
-            installment = Installment.objects.create(external_id=gc_installment.id,
-                                                     name=gc_installment.name,
-                                                     payment_method=participant.payment_method,
-                                                     safe=safe)
-            installments.append(installment)
-        return installments
+            gc_instalment = self.payment_gate_way_client. \
+                create_instalment_with_schedule("{}-installments".format(safe.name),
+                                                participant.payment_method.mandate.mandate_external_id,
+                                                total_amount, app_fee, amounts,
+                                                currency,
+                                                datetime.datetime.now() + relativedelta(months=+1),
+                                                1)
+            instalment = Instalment.objects.create(external_id=gc_instalment.id,
+                                                   name=gc_instalment.name,
+                                                   participation=participant)
+            instalments.append(instalment)
+        return instalments
+
+    def instalmentActivated(self, instalment_external_id):
+        instalment = Instalment.objects.filter(external_id=instalment_external_id).first()
+        if instalment is None:
+            self.logger.error("Instalment not found for {}".format(instalment_external_id))
+            raise ValidationError("Instalment not found for {}".format(instalment_external_id))
+        gc_instalment = self.payment_gate_way_client.get_instalment(instalment_external_id)
+        if gc_instalment is None:
+            self.logger.error("External instalment not found for {}".format(instalment_external_id))
+            raise ValidationError("External instalment not found for {}".format(instalment_external_id))
+        for payment_id in gc_instalment.links.payments:
+            gc_payment = self.payment_gate_way_client.get_payment(payment_id)
+            if gc_payment is None:
+                self.logger.error("External payment not found for {}".format(payment_id))
+                raise ValidationError("External payment not found for {}".format(payment_id))
+            self.payment_service.createInternalPayment(instalment.participation,
+                                                       gc_payment.amount,
+                                                       gc_payment.currency,
+                                                       "",
+                                                       gc_payment.charge_date,
+                                                       gc_payment.id)
+        instalment.activated()
+        instalment.save()
+        return instalment
 
 
 class EventExecutor(object):
@@ -655,6 +688,7 @@ class EventExecutor(object):
     def __init__(self, access_token=None, environment=None):
         self.payment_method_service = PaymentMethodService(access_token, environment)
         self.payment_service = PaymentService(access_token, environment)
+        self.instalment_service = InstalmentService(access_token, environment)
         self.safe_service = SafeService()
 
     def mandate_active(self, mandate_id):
@@ -677,7 +711,7 @@ class EventExecutor(object):
         return payment
 
     def instalment_created(self, instalment_id):
-        pass
+        return self.instalment_service.instalmentActivated(instalment_id)
 
     def executeNextRunnableJob(self):
         result = None

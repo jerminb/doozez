@@ -2,6 +2,7 @@ import os
 from collections import namedtuple
 from unittest.mock import create_autospec
 
+from django.db.models import Q
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -12,11 +13,12 @@ from .decorators import clear, doozez_task
 
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
     MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, SafeStatus, \
-    ParticipationStatus, Mandate, PaymentStatus, Invitation, DoozezExecutableStatus, Event, Installment
+    ParticipationStatus, Mandate, PaymentStatus, Invitation, DoozezExecutableStatus, Event, Instalment, \
+    InstalmentStatus, Payment
 from .notification import NotificationProvider
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
     ParticipationService, PaymentService, TaskPlanner, JobService, JobExecutor, EventExecutor, EventService, \
-    NotificationService, EventType, InstallmentService
+    NotificationService, EventType, InstalmentService
 
 
 class ServiceTest(TestCase):
@@ -442,11 +444,11 @@ class ServiceTest(TestCase):
             "id": "foo",
             "name": "safebar-installments",
         }
-        mock_ci.create_installment_with_schedule.return_value = namedtuple("GCInstalmentSchedule",
-                                                                           expected_dict.keys())(
+        mock_ci.create_instalment_with_schedule.return_value = namedtuple("GCInstalmentSchedule",
+                                                                          expected_dict.keys())(
             *expected_dict.values())
-        installment_service = InstallmentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
-        installment_service.payment_gate_way_client = mock_ci
+        instalment_service = InstalmentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
+        instalment_service.payment_gate_way_client = mock_ci
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         bob = self.User.objects.create_user(email='bob@user.com', password='foo')
         alice_mandate = Mandate.objects.create(mandate_external_id="alice_mandate")
@@ -455,19 +457,61 @@ class ServiceTest(TestCase):
         bob_payment_method = PaymentMethod.objects.create(user=bob, is_default=True, mandate=bob_mandate)
         safe = Safe.objects.create(name='safebar', monthly_payment=10, total_participants=2,
                                    initiator=alice)
-        Participation.objects.create(user=alice,
-                                     safe=safe,
-                                     user_role=ParticipantRole.Initiator,
-                                     payment_method=alice_payment_method)
-        Participation.objects.create(user=bob,
-                                     safe=safe,
-                                     user_role=ParticipantRole.Participant,
-                                     payment_method=bob_payment_method)
-        installments = installment_service.createInstallmentForSafe(safe.pk, 10, 'GBP')
-        self.assertEqual(len(installments), 2)
-        self.assertEqual(installments[0].name, 'safebar-installments')
-        saved_installments = Installment.objects.filter(safe=safe.pk).all()
+        alice_participation = Participation.objects.create(user=alice,
+                                                           safe=safe,
+                                                           user_role=ParticipantRole.Initiator,
+                                                           payment_method=alice_payment_method)
+        bob_participation = Participation.objects.create(user=bob,
+                                                         safe=safe,
+                                                         user_role=ParticipantRole.Participant,
+                                                         payment_method=bob_payment_method)
+        instalments = instalment_service.createInstalmentForSafe(safe.pk, 10, 'GBP')
+        self.assertEqual(len(instalments), 2)
+        self.assertEqual(instalments[0].name, 'safebar-installments')
+        saved_installments = Instalment.objects.filter(
+            Q(participation=alice_participation.pk) |
+            Q(participation=bob_participation.pk)).all()
         self.assertEqual(len(saved_installments), 2)
+
+    @mock.patch('safe.client_interfaces.PaymentGatewayClient')
+    def test_instalment_activated(self, mock_ci):
+        expected_links = {
+            "payments": ["foo_pay_1"]
+        }
+        expected_dict = {
+            "id": "foo_instalment",
+            "name": "safebar-instalments",
+            "links": namedtuple("GCInstalmentSchedule", expected_links.keys())(*expected_links.values())
+        }
+        expected_payments_dict = {
+            "id": "foo_pay_1",
+            "amount": 1000,
+            "currency": "GBP",
+            "charge_date": "2021-11-22"
+        }
+        mock_ci.get_instalment.return_value = namedtuple("GCInstalmentSchedule",
+                                                         expected_dict.keys())(*expected_dict.values())
+        mock_ci.get_payment.return_value = namedtuple("GCPayments",
+                                                      expected_payments_dict.keys())(*expected_payments_dict.values())
+        instalment_service = InstalmentService(os.environ['GC_ACCESS_TOKEN'], 'sandbox')
+        instalment_service.payment_gate_way_client = mock_ci
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        alice_mandate = Mandate.objects.create(mandate_external_id="alice_mandate")
+        alice_payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=alice_mandate)
+        safe = Safe.objects.create(name='safebar', monthly_payment=10, total_participants=2,
+                                   initiator=alice)
+        alice_participation = Participation.objects.create(user=alice,
+                                                           safe=safe,
+                                                           user_role=ParticipantRole.Initiator,
+                                                           payment_method=alice_payment_method)
+        instalment = Instalment.objects.create(external_id="foo_instalment",
+                                               name="safebar-instalments",
+                                               participation=alice_participation)
+        instalment_service.instalmentActivated("foo_instalment")
+        instalment = Instalment.objects.get(pk=instalment.pk)
+        self.assertEqual(instalment.status, InstalmentStatus.Active)
+        payment = Payment.objects.filter(external_id="foo_pay_1").first()
+        self.assertEqual(payment.charge_date.strftime("%Y-%m-%d"), "2021-11-22")
 
     def test_safe_start(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')

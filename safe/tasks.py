@@ -6,11 +6,11 @@ from rest_framework.exceptions import ValidationError
 
 from .decorators import doozez_task
 from .models import DoozezTaskType, PaymentMethodStatus, ParticipantRole
-from .services import ParticipationService, PaymentService, InstallmentService
+from .services import ParticipationService, PaymentService, InstalmentService
 
 participation_service = ParticipationService()
 payment_service = PaymentService(os.environ['GC_ACCESS_TOKEN'], os.environ['GC_ENVIRONMENT'])
-installment_service = InstallmentService(os.environ['GC_ACCESS_TOKEN'], os.environ['GC_ENVIRONMENT'])
+installment_service = InstalmentService(os.environ['GC_ACCESS_TOKEN'], os.environ['GC_ENVIRONMENT'])
 
 
 def draw(safe_id, parti_service):
@@ -36,7 +36,7 @@ def create_payment_for_participant(participation_id, amount, currency, pay_servi
 
 
 def create_payment_for_installments(safe_id, app_fee, currency, installment_service):
-    return installment_service.createInstallmentForSafe(safe_id, app_fee, currency)
+    return installment_service.createInstalmentForSafe(safe_id, app_fee, currency)
 
 
 def add_tasks():
