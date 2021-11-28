@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import sys
+import threading
 from enum import Enum
 from typing import Union
 
@@ -13,7 +14,8 @@ from djmoney.money import Money
 from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, \
     ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
-    Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus, DoozezUser, Instalment
+    Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus, DoozezUser, Instalment, \
+    InstalmentStatus
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -550,7 +552,81 @@ class TaskPlanner(object):
         return job
 
 
+class InstalmentService(object):
+    logger = logging.getLogger(__name__)
+    participation_service = ParticipationService()
+
+    def __init__(self, access_token=None, environment=None):
+        if access_token is None or environment is None:
+            self.payment_gate_way_client = None
+        else:
+            self.payment_gate_way_client = PaymentGatewayClient(access_token, environment)
+        self.payment_service = PaymentService(access_token, environment)
+
+    def getSafeWithId(self, safe_id):
+        return Safe.objects.get(pk=safe_id)
+
+    def createInstalmentForSafe(self, safe_id, app_fee, currency):
+        participants = self.participation_service.getParticipationForSafe(safe_id)
+        safe = self.getSafeWithId(safe_id)
+        total_instalments = len(participants) - 1
+        total_amount = safe.monthly_payment * total_instalments * 100  # in Pence
+        amounts = []
+        for i in range(total_instalments):
+            amounts.append(safe.monthly_payment * 100)  # in Pence
+        instalments = []
+        for participant in participants:
+            gc_instalment = self.payment_gate_way_client. \
+                create_instalment_with_schedule("{}-installments".format(safe.name),
+                                                participant.payment_method.mandate.mandate_external_id,
+                                                total_amount, app_fee, amounts,
+                                                currency,
+                                                datetime.datetime.now() + relativedelta(months=+1),
+                                                1)
+            instalment = Instalment.objects.create(external_id=gc_instalment.id,
+                                                   name=gc_instalment.name,
+                                                   participation=participant)
+            instalments.append(instalment)
+        return instalments
+
+    def instalmentActivated(self, instalment_external_id):
+        instalment = Instalment.objects.filter(external_id=instalment_external_id).first()
+        if instalment is None:
+            self.logger.error("Instalment not found for {}".format(instalment_external_id))
+            raise ValidationError("Instalment not found for {}".format(instalment_external_id))
+        gc_instalment = self.payment_gate_way_client.get_instalment(instalment_external_id)
+        if gc_instalment is None:
+            self.logger.error("External instalment not found for {}".format(instalment_external_id))
+            raise ValidationError("External instalment not found for {}".format(instalment_external_id))
+        for payment_id in gc_instalment.links.payments:
+            gc_payment = self.payment_gate_way_client.get_payment(payment_id)
+            if gc_payment is None:
+                self.logger.error("External payment not found for {}".format(payment_id))
+                raise ValidationError("External payment not found for {}".format(payment_id))
+            self.payment_service.createInternalPayment(instalment.participation,
+                                                       gc_payment.amount,
+                                                       gc_payment.currency,
+                                                       "",
+                                                       gc_payment.charge_date,
+                                                       gc_payment.id)
+        instalment.activated()
+        instalment.save()
+        return instalment
+
+    def getPendingActivationInstalmentsForSafe(self, safe_id):
+        result = Instalment.objects.filter(
+            Q(participation__safe=safe_id) &
+            ~Q(status=InstalmentStatus.Active)).all()
+        return result
+
+
+class PokeType(Enum):
+    PaymentConfirmed = 1
+    InstalmentActivated = 2
+
+
 class SafeService(object):
+    logger = logging.getLogger(__name__)
     participation_service = ParticipationService()
     invitation_service = InvitationService()
     task_planner = TaskPlanner()
@@ -558,6 +634,8 @@ class SafeService(object):
     def __init__(self, access_token=None, environment=None):
         self.payment_service = PaymentService(access_token, environment)
         self.payment_method_service = PaymentMethodService(access_token, environment)
+        self.instalment_service = InstalmentService(access_token, environment)
+        self.poke_management_lock = threading.Lock()
 
     def getSafeWithId(self, safe_id):
         return Safe.objects.get(pk=safe_id)
@@ -610,75 +688,41 @@ class SafeService(object):
         safe.save()
         return safe
 
-    def completeStartSafe(self, safe_id) -> Union[Safe, ValidationError]:
-        safe = self.getSafeWithId(safe_id)
+    def validate_poke_event(self, poke_event) -> ValidationError:
+        event_type = poke_event.get("type")
+        if event_type is None:
+            return ValidationError("event type not found")
+        if not isinstance(event_type, PokeType):
+            return ValidationError("event type should on type of PokeType Enum")
+        expected_keys = []
+        if event_type == PokeType.InstalmentActivated:
+            expected_keys = ["safe_id"]
+        if event_type == PokeType.PaymentConfirmed:
+            expected_keys = ["safe_id"]
+        if not all(k in poke_event for k in expected_keys):
+            return ValidationError("some keys not found in poke event")
+        return None
+
+    def poke(self, poke_event) -> Union[Safe, ValidationError]:
+        err = self.validate_poke_event(poke_event)
+        if err is not None:
+            None, err
+        safe_id = poke_event.get('safe_id')
+        safe = self.getSafeWithId(poke_event.get('safe_id'))
         if safe is None or safe.status != SafeStatus.Starting:
             return None, ValidationError("safe {} with Starting status not found".format(safe_id))
-        pending_payment = self.payment_service.getPendingConfirmationPaymentsForSafe(safe_id)
-        if not pending_payment:
-            safe.status = SafeStatus.Started
-            safe.save()
+        self.poke_management_lock.acquire()
+        try:
+            logging.info('safe lock acquired')
+            pending_payment = self.payment_service.getPendingConfirmationPaymentsForSafe(safe_id)
+            pending_instalments = self.instalment_service.getPendingActivationInstalmentsForSafe(safe_id)
+            if not (pending_payment or pending_instalments):
+                safe.status = SafeStatus.Started
+                safe.save()
+        finally:
+            self.poke_management_lock.release()
+            logging.info('safe lock released')
         return safe, None
-
-
-class InstalmentService(object):
-    logger = logging.getLogger(__name__)
-    participation_service = ParticipationService()
-
-    def __init__(self, access_token=None, environment=None):
-        if access_token is None or environment is None:
-            self.payment_gate_way_client = None
-        else:
-            self.payment_gate_way_client = PaymentGatewayClient(access_token, environment)
-        self.safe_service = SafeService(access_token, environment)
-        self.payment_service = PaymentService(access_token, environment)
-
-    def createInstalmentForSafe(self, safe_id, app_fee, currency):
-        participants = self.participation_service.getParticipationForSafe(safe_id)
-        safe = self.safe_service.getSafeWithId(safe_id)
-        total_instalments = len(participants) - 1
-        total_amount = safe.monthly_payment * total_instalments * 100  # in Pence
-        amounts = []
-        for i in range(total_instalments):
-            amounts.append(safe.monthly_payment * 100)  # in Pence
-        instalments = []
-        for participant in participants:
-            gc_instalment = self.payment_gate_way_client. \
-                create_instalment_with_schedule("{}-installments".format(safe.name),
-                                                participant.payment_method.mandate.mandate_external_id,
-                                                total_amount, app_fee, amounts,
-                                                currency,
-                                                datetime.datetime.now() + relativedelta(months=+1),
-                                                1)
-            instalment = Instalment.objects.create(external_id=gc_instalment.id,
-                                                   name=gc_instalment.name,
-                                                   participation=participant)
-            instalments.append(instalment)
-        return instalments
-
-    def instalmentActivated(self, instalment_external_id):
-        instalment = Instalment.objects.filter(external_id=instalment_external_id).first()
-        if instalment is None:
-            self.logger.error("Instalment not found for {}".format(instalment_external_id))
-            raise ValidationError("Instalment not found for {}".format(instalment_external_id))
-        gc_instalment = self.payment_gate_way_client.get_instalment(instalment_external_id)
-        if gc_instalment is None:
-            self.logger.error("External instalment not found for {}".format(instalment_external_id))
-            raise ValidationError("External instalment not found for {}".format(instalment_external_id))
-        for payment_id in gc_instalment.links.payments:
-            gc_payment = self.payment_gate_way_client.get_payment(payment_id)
-            if gc_payment is None:
-                self.logger.error("External payment not found for {}".format(payment_id))
-                raise ValidationError("External payment not found for {}".format(payment_id))
-            self.payment_service.createInternalPayment(instalment.participation,
-                                                       gc_payment.amount,
-                                                       gc_payment.currency,
-                                                       "",
-                                                       gc_payment.charge_date,
-                                                       gc_payment.id)
-        instalment.activated()
-        instalment.save()
-        return instalment
 
 
 class EventExecutor(object):
@@ -705,13 +749,20 @@ class EventExecutor(object):
 
     def payment_confirmed(self, payment_id):
         payment = self.payment_service.paymentExternallyConfirmed(payment_id)
-        safe, validation_error = self.safe_service.completeStartSafe(payment.participation.safe.pk)
+        poke_event = {'safe_id':payment.participation.safe.pk, 'type': PokeType.PaymentConfirmed}
+        safe, validation_error = self.safe_service.poke(poke_event)
         if validation_error is not None:
             self.logger.info("completeStartSafe failed: {}".format(validation_error))
         return payment
 
     def instalment_created(self, instalment_id):
-        return self.instalment_service.instalmentActivated(instalment_id)
+        instalment = self.instalment_service.instalmentActivated(instalment_id)
+        poke_event = {'safe_id': instalment.participation.safe.pk, 'type': PokeType.InstalmentActivated}
+        safe, validation_error = self.safe_service.poke(poke_event)
+        if validation_error is not None:
+            self.logger.info("completeStartSafe failed: {}".format(validation_error))
+        return instalment
+
 
     def executeNextRunnableJob(self):
         result = None

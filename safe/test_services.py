@@ -8,6 +8,8 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from unittest import mock
 
+from djmoney.money import Money
+
 from . import utils
 from .decorators import clear, doozez_task
 
@@ -18,7 +20,7 @@ from .models import Safe, PaymentMethod, InvitationStatus, Participation, Partic
 from .notification import NotificationProvider
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
     ParticipationService, PaymentService, TaskPlanner, JobService, JobExecutor, EventExecutor, EventService, \
-    NotificationService, EventType, InstalmentService
+    NotificationService, EventType, InstalmentService, PokeType
 
 
 class ServiceTest(TestCase):
@@ -512,6 +514,29 @@ class ServiceTest(TestCase):
         self.assertEqual(instalment.status, InstalmentStatus.Active)
         payment = Payment.objects.filter(external_id="foo_pay_1").first()
         self.assertEqual(payment.charge_date.strftime("%Y-%m-%d"), "2021-11-22")
+
+    def test_safe_poke_payment_creation(self):
+        alice = self.User.objects.create_user(email='alice@user.com', password='foo')
+        alice_mandate = Mandate.objects.create(mandate_external_id="alice_mandate")
+        alice_payment_method = PaymentMethod.objects.create(user=alice, is_default=True, mandate=alice_mandate)
+        safe = Safe.objects.create(name='safebar', monthly_payment=10, total_participants=2,
+                                   initiator=alice, status=SafeStatus.Starting)
+        alice_participation = Participation.objects.create(user=alice,
+                                                           safe=safe,
+                                                           user_role=ParticipantRole.Initiator,
+                                                           payment_method=alice_payment_method)
+        Payment.objects.create(external_id="foo_payment",
+                               participation=alice_participation,
+                               status=PaymentStatus.PendingSubmission,
+                               amount=Money(10, 'GBP'))
+        Instalment.objects.create(external_id="foo_instalment",
+                                  name="safebar-instalments",
+                                  participation=alice_participation,
+                                  status=InstalmentStatus.Active)
+        safe_service = SafeService()
+        safe = safe_service.poke({'safe_id': safe.pk, 'type': PokeType.InstalmentActivated})
+        self.assertIsNone(safe[1])
+        self.assertEqual(safe[0].status, SafeStatus.Starting)
 
     def test_safe_start(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
