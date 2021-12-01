@@ -4,13 +4,15 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.test import TestCase
+from djmoney.money import Money
 from fcm_django.models import FCMDevice
 from rest_framework.reverse import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 
 from .models import Safe, Invitation, InvitationStatus, PaymentMethod, DoozezJob, DoozezJobType, DoozezTaskStatus, \
-    DoozezTaskType, DoozezTask, Participation, ParticipantRole, SafeStatus, ParticipationStatus, PaymentMethodStatus
+    DoozezTaskType, DoozezTask, Participation, ParticipantRole, SafeStatus, ParticipationStatus, PaymentMethodStatus, \
+    PaymentStatus, Payment
 from .utils import send_notification_to_user
 
 
@@ -103,7 +105,8 @@ class UsersManagersTests(TestCase):
         bob = User.objects.create_user(email='bob@user.com', password='foo')
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         safebob = Safe.objects.create(name='safebob', monthly_payment=1, total_participants=1, initiator=bob)
-        alice_invite = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        alice_invite = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob,
+                                                 safe=safealice)
         Invitation.objects.create(status=InvitationStatus.Pending, sender=bob, recipient=alice, safe=safebob)
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
@@ -120,7 +123,8 @@ class UsersManagersTests(TestCase):
         bob = User.objects.create_user(email='bob@user.com', password='foo')
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         safebob = Safe.objects.create(name='safebob', monthly_payment=1, total_participants=1, initiator=bob)
-        alice_invite = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob, safe=safealice)
+        alice_invite = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob,
+                                                 safe=safealice)
         Invitation.objects.create(status=InvitationStatus.Pending, sender=bob, recipient=alice, safe=safebob)
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
@@ -278,7 +282,7 @@ class UsersManagersTests(TestCase):
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         bob = User.objects.create_user(email='bob@user.com', password='foo')
         Invitation.objects.create(status=InvitationStatus.Declined, sender=alice, recipient=bob,
-                                               safe=safealice)
+                                  safe=safealice)
         client = APIClient()
         client.login(username='bob@user.com', password='foo')
         response = client.get(reverse('safe-list'),
@@ -306,9 +310,9 @@ class UsersManagersTests(TestCase):
                                data=json.dumps(data),
                                content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        alice_participation = Participation.\
-            objects.\
-            filter(Q(user=alice.pk) & Q(safe=response.data['id'])).\
+        alice_participation = Participation. \
+            objects. \
+            filter(Q(user=alice.pk) & Q(safe=response.data['id'])). \
             first()
         client.login(username='bob@user.com', password='foo')
         response = client.get(reverse('participation-detail', args=[alice_participation.pk]),
@@ -323,6 +327,32 @@ class UsersManagersTests(TestCase):
         client = APIClient()
         client.login(username='bob@user.com', password='foo')
         response = client.get(reverse('paymentmethod-list'),
+                              content_type='application/json')
+        self.assertEqual(response.data['count'], 0)
+
+    def test_retrieve_payment_user(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        User.objects.create_user(email='bob@user.com', password='foo')
+        alice_payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice, status=SafeStatus.Starting)
+        alice_participation = Participation.objects.create(user=alice,
+                                                           safe=safe,
+                                                           user_role=ParticipantRole.Initiator,
+                                                           payment_method=alice_payment_method)
+        alice_payment = Payment.objects.create(external_id="foo_payment",
+                                               participation=alice_participation,
+                                               status=PaymentStatus.PendingSubmission,
+                                               amount=Money(10, 'GBP'))
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('payment-list'),
+                              content_type='application/json')
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], alice_payment.pk)
+        client.login(username='bob@user.com', password='foo')
+        response = client.get(reverse('payment-list'),
                               content_type='application/json')
         self.assertEqual(response.data['count'], 0)
 
@@ -436,7 +466,7 @@ class UsersManagersTests(TestCase):
 
     def test_register_device(self):
         User = get_user_model()
-        alice=User.objects.create_user(email='alice@user.com', password='foo')
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
         data = {

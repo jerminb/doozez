@@ -26,8 +26,10 @@ from rest_framework.response import Response
 from .permissions import IsOwner
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
     InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer, \
-    ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer, JobSerializer
-from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod, DoozezJob, InvitationStatus
+    ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer, JobSerializer, \
+    PaymentSerializer
+from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod, DoozezJob, InvitationStatus, \
+    Payment
 from .services import InvitationService, SafeService, PaymentMethodService, ParticipationService, EventService
 
 
@@ -133,6 +135,7 @@ class OwnerViewSet(viewsets.ModelViewSet):
 
 
 class ReadOnlyOwnerViewSet(viewsets.ReadOnlyModelViewSet):
+    pagination_class = StandardResultsSetPagination
     def get_owner_filter(self):
         pass
 
@@ -412,6 +415,19 @@ class PaymentMethodViewSet(OwnerViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class PaymentViewSet(ReadOnlyOwnerViewSet):
+    """
+    API endpoint that allows groups to be viewed or edited.
+    """
+    queryset = Payment.objects.all()
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_owner_filter(self):
+        user = self.request.user
+        return Q(participation__user=user)
+
+
 class JobsViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ReadOnly ViewSet for Jobs
@@ -463,6 +479,8 @@ class WebhookViewSet(viewsets.ModelViewSet):
                     link_id = event.links.mandate
                 elif event.resource_type == "payments":
                     link_id = event.links.payment
+                elif event.resource_type == "instalment_schedules":
+                    link_id = event.links.instalment_schedules
                 self.event_service.createEvent(event.id,
                                                event.created_at,
                                                event.resource_type,

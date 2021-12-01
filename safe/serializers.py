@@ -44,11 +44,12 @@ class SafeSerializer(serializers.ModelSerializer):
 
 class InvitationReadSerializer(serializers.ModelSerializer):
     recipient = UserSerializer()
+    sender = UserSerializer()
     safe = SafeSerializer()
 
     class Meta:
         model = Invitation
-        fields = ['id', 'status', 'recipient', 'safe']
+        fields = ['id', 'status', 'recipient', 'sender', 'safe']
 
 
 class InvitationUpsertSerializer(serializers.ModelSerializer):
@@ -105,11 +106,11 @@ class ParticipationRetrieveSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
-    payment_method = PaymentMethodSerializer()
+    participation = ParticipationRetrieveSerializer()
 
     class Meta:
         model = Payment
-        fields = ['id', 'amount', 'charge_date', 'description', 'payment_method']
+        fields = ['id', 'status', 'amount', 'charge_date', 'description', 'participation']
 
 
 class TaskSerializer(serializers.ModelSerializer):

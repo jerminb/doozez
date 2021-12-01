@@ -13,6 +13,7 @@ router.register(r'groups', views.GroupViewSet)
 router.register(r'invitations', views.InvitationViewSet, basename="invitation")
 router.register(r'participations', views.ParticipationViewSet, basename="participation")
 router.register(r'payment-methods', views.PaymentMethodViewSet, basename="paymentmethod")
+router.register(r'payments', views.PaymentViewSet, basename="payment")
 router.register(r'jobs', views.JobsViewSet, basename="job")
 router.register(r'webhooks', views.WebhookViewSet, basename="webhook")
 
