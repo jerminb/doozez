@@ -322,7 +322,7 @@ class ParticipationStatus(models.TextChoices):
 
 
 class Participation(models.Model):
-    user_role = status = models.CharField(
+    user_role = models.CharField(
         max_length=3,
         choices=ParticipantRole.choices,
         default=ParticipantRole.Participant,
@@ -394,11 +394,21 @@ class PaymentStatus(models.TextChoices):
     ChargedBack = 'charged_back', _('ChargedBack')
 
 
+class PaymentType(models.TextChoices):
+    Debit = 'debit', _('Debit')
+    Credit = 'credit', _('Credit')
+
+
 class Payment(TimeStampedModel):
     status = FSMField(
         choices=PaymentStatus.choices,
         default=PaymentStatus.PendingSubmission,
         protected=True,
+    )
+    payment_type = models.CharField(
+        max_length=10,
+        choices=PaymentType.choices,
+        default=PaymentType.Debit,
     )
     participation = models.ForeignKey(
         Participation,

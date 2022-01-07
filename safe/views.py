@@ -427,6 +427,13 @@ class PaymentViewSet(ReadOnlyOwnerViewSet):
         user = self.request.user
         return Q(participation__user=user)
 
+    def get_queryset(self):
+        payment_type = self.request.query_params.get('type')
+        result = super().get_queryset()
+        if payment_type is not None:
+            result = result.filter(payment_type=payment_type)
+        return result
+
 
 class JobsViewSet(viewsets.ReadOnlyModelViewSet):
     """

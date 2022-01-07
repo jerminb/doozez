@@ -356,6 +356,28 @@ class UsersManagersTests(TestCase):
                               content_type='application/json')
         self.assertEqual(response.data['count'], 0)
 
+    def test_retrieve_payment_with_type(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        alice_payment_method = PaymentMethod.objects.create(user=alice, is_default=True)
+        safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1,
+                                   initiator=alice, status=SafeStatus.Starting)
+        alice_participation = Participation.objects.create(user=alice,
+                                                           safe=safe,
+                                                           user_role=ParticipantRole.Initiator,
+                                                           payment_method=alice_payment_method)
+        alice_payment = Payment.objects.create(external_id="foo_payment",
+                                               participation=alice_participation,
+                                               status=PaymentStatus.PendingSubmission,
+                                               amount=Money(10, 'GBP'))
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('payment-list') + "?type=debit",
+                              content_type='application/json')
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], alice_payment.pk)
+
+
     def test_post_participants(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')
