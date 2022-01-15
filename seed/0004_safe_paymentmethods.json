@@ -1,0 +1,57 @@
+[
+{
+    "model": "safe.paymentmethod",
+    "pk": 9,
+    "fields": {
+        "status": "EXA",
+        "user": 22,
+        "is_default": true,
+        "mandate": 27,
+        "name": "main"
+    }
+},
+{
+    "model": "safe.paymentmethod",
+    "pk": 10,
+    "fields": {
+        "status": "EXA",
+        "user": 19,
+        "is_default": true,
+        "mandate": 26,
+        "name": "main"
+    }
+},
+{
+    "model": "safe.paymentmethod",
+    "pk": 11,
+    "fields": {
+        "status": "EXA",
+        "user": 21,
+        "is_default": true,
+        "mandate": 25,
+        "name": "main"
+    }
+},
+{
+    "model": "safe.paymentmethod",
+    "pk": 12,
+    "fields": {
+        "status": "EXA",
+        "user": 20,
+        "is_default": true,
+        "mandate": 24,
+        "name": "main"
+    }
+},
+{
+    "model": "safe.paymentmethod",
+    "pk": 13,
+    "fields": {
+        "status": "EXA",
+        "user": 23,
+        "is_default": true,
+        "mandate": 26,
+        "name": "main"
+    }
+}
+]

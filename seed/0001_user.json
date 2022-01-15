@@ -1,0 +1,92 @@
+[
+{
+    "model": "safe.doozezuser",
+    "pk": 19,
+    "fields": {
+        "password": "pbkdf2_sha256$260000$Dix2lc5C6QB74rPOClHLhY$hOqiXPltHP9eUB//lT1tmm2xohCMoxRL1UyTm7zjWEs=",
+        "last_login": "2000-04-11T01:46:43Z",
+        "is_superuser": false,
+        "first_name": "Michael",
+        "last_name": "Jordan",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2022-01-08T11:08:46.599Z",
+        "email": "bautistatina@example.org",
+        "is_system": false,
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "safe.doozezuser",
+    "pk": 20,
+    "fields": {
+        "password": "pbkdf2_sha256$260000$KQmjn40JqtZqheleMWCKIj$CBJL8e7uh6a3jaOiBsqco34k09g47HaDcCm4EgdaBuc=",
+        "last_login": "2014-09-10T00:36:21Z",
+        "is_superuser": false,
+        "first_name": "Tony",
+        "last_name": "Cox",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2022-01-08T11:08:46.599Z",
+        "email": "jenniferyoung@example.org",
+        "is_system": false,
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "safe.doozezuser",
+    "pk": 21,
+    "fields": {
+        "password": "pbkdf2_sha256$260000$KcVQ9DCo2C03IsHNfrNSe3$LonzXArNg8gIbijeiBXaxj0Jcj904vD95pB25d1A0sQ=",
+        "last_login": "2008-02-17T23:38:02Z",
+        "is_superuser": false,
+        "first_name": "Emily",
+        "last_name": "Harris",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2022-01-08T11:08:46.599Z",
+        "email": "fsmith@example.org",
+        "is_system": false,
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "safe.doozezuser",
+    "pk": 22,
+    "fields": {
+        "password": "pbkdf2_sha256$260000$pGtINeu7Nxai49tQtuzhWf$UZx6lObVR5nrZ4L536hsG4UHCK12eBK5L5qh6BWG4JE=",
+        "last_login": "1991-08-29T10:42:55Z",
+        "is_superuser": false,
+        "first_name": "Janice",
+        "last_name": "Morris",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2022-01-08T11:08:46.599Z",
+        "email": "youngsamantha@example.com",
+        "is_system": false,
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "safe.doozezuser",
+    "pk": 23,
+    "fields": {
+        "password": "pbkdf2_sha256$260000$u6DiaIb8hQCvNu4yjC5qJS$YNXPqC4aLb5pvpUPZFMhdggwcRdflOkIyAKR9ZXBGeU=",
+        "last_login": "1995-09-24T14:43:25Z",
+        "is_superuser": false,
+        "first_name": "Theresa",
+        "last_name": "Farmer",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2022-01-08T11:08:46.599Z",
+        "email": "vmunoz@example.net",
+        "is_system": false,
+        "groups": [],
+        "user_permissions": []
+    }
+}
+]

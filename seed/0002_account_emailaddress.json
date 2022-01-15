@@ -1,0 +1,52 @@
+[
+{
+    "model": "account.emailaddress",
+    "pk": 5,
+    "fields": {
+        "email": "bautistatina@example.org",
+        "verified": true,
+        "primary": true,
+        "user_id": 19
+    }
+},
+{
+  "model": "account.emailaddress",
+  "pk": 6,
+  "fields": {
+      "email": "jenniferyoung@example.org",
+      "verified": true,
+      "primary": true,
+      "user_id": 20
+  }
+},
+{
+  "model": "account.emailaddress",
+  "pk": 7,
+  "fields": {
+      "email": "fsmith@example.org",
+      "verified": true,
+      "primary": true,
+      "user_id": 21
+  }
+},
+{
+  "model": "account.emailaddress",
+  "pk": 8,
+  "fields": {
+      "email": "youngsamantha@example.com",
+      "verified": true,
+      "primary": true,
+      "user_id": 22
+  }
+},
+{
+  "model": "account.emailaddress",
+  "pk": 9,
+  "fields": {
+      "email": "vmunoz@example.net",
+      "verified": true,
+      "primary": true,
+      "user_id": 23
+  }
+}
+]

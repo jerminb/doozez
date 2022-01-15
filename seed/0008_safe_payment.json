@@ -1,0 +1,882 @@
+[
+{
+    "model": "safe.payment",
+    "pk": 1,
+    "fields": {
+        "created_on": "2021-11-03T18:05:10.378Z",
+        "updated_at": "2021-11-03T18:05:10.378Z",
+        "status": "pending_submission",
+        "payment_type": "debit",
+        "participation": 1,
+        "amount_currency": "GBP",
+        "amount": "1000.00",
+        "charge_date": null,
+        "description": "",
+        "external_id": "PM0041GAXJK6Q2"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 2,
+    "fields": {
+        "created_on": "2021-11-03T18:15:20.278Z",
+        "updated_at": "2021-11-03T18:15:20.278Z",
+        "status": "pending_submission",
+        "payment_type": "debit",
+        "participation": 2,
+        "amount_currency": "GBP",
+        "amount": "1000.00",
+        "charge_date": null,
+        "description": "",
+        "external_id": "PM0041GB0V4XYA"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 3,
+    "fields": {
+        "created_on": "2021-11-03T18:21:20.299Z",
+        "updated_at": "2021-11-03T18:21:20.299Z",
+        "status": "pending_submission",
+        "payment_type": "debit",
+        "participation": 3,
+        "amount_currency": "GBP",
+        "amount": "1000.00",
+        "charge_date": null,
+        "description": "",
+        "external_id": "PM0041GB23SKB5"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 4,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.840Z",
+        "updated_at": "2022-01-08T17:26:43.840Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 15,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-10-06T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 5,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.885Z",
+        "updated_at": "2022-01-08T17:26:43.885Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 11,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-10-06T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 6,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.886Z",
+        "updated_at": "2022-01-08T17:26:43.886Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 14,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-10-06T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 7,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.887Z",
+        "updated_at": "2022-01-08T17:26:43.887Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 15,
+        "amount_currency": "GBP",
+        "amount": "60.00",
+        "charge_date": "2021-10-06T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 8,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.889Z",
+        "updated_at": "2022-01-08T17:26:43.889Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 15,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-05T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 9,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.890Z",
+        "updated_at": "2022-01-08T17:26:43.890Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 11,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-05T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 10,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.891Z",
+        "updated_at": "2022-01-08T17:26:43.891Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 14,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-05T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 11,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.893Z",
+        "updated_at": "2022-01-08T17:26:43.893Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 11,
+        "amount_currency": "GBP",
+        "amount": "60.00",
+        "charge_date": "2021-11-05T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 12,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.894Z",
+        "updated_at": "2022-01-08T17:26:43.894Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 15,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-05T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 13,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.896Z",
+        "updated_at": "2022-01-08T17:26:43.897Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 11,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-05T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 14,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.899Z",
+        "updated_at": "2022-01-08T17:26:43.899Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 14,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-05T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 15,
+    "fields": {
+        "created_on": "2022-01-08T17:26:43.900Z",
+        "updated_at": "2022-01-08T17:26:43.900Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 14,
+        "amount_currency": "GBP",
+        "amount": "60.00",
+        "charge_date": "2021-12-05T17:26:36.949Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 16,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.863Z",
+        "updated_at": "2022-01-08T17:31:20.863Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 17,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-10-11T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 17,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.867Z",
+        "updated_at": "2022-01-08T17:31:20.867Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 16,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-10-11T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 18,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.868Z",
+        "updated_at": "2022-01-08T17:31:20.869Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 13,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-10-11T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 19,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.870Z",
+        "updated_at": "2022-01-08T17:31:20.870Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 17,
+        "amount_currency": "GBP",
+        "amount": "60.00",
+        "charge_date": "2021-10-11T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 20,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.871Z",
+        "updated_at": "2022-01-08T17:31:20.871Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 17,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-10T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 21,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.874Z",
+        "updated_at": "2022-01-08T17:31:20.874Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 16,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-10T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 22,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.876Z",
+        "updated_at": "2022-01-08T17:31:20.876Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 13,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-10T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 23,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.878Z",
+        "updated_at": "2022-01-08T17:31:20.878Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 16,
+        "amount_currency": "GBP",
+        "amount": "60.00",
+        "charge_date": "2021-11-10T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 24,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.880Z",
+        "updated_at": "2022-01-08T17:31:20.880Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 17,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-10T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 25,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.881Z",
+        "updated_at": "2022-01-08T17:31:20.881Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 16,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-10T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 26,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.882Z",
+        "updated_at": "2022-01-08T17:31:20.882Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 13,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-10T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 27,
+    "fields": {
+        "created_on": "2022-01-08T17:31:20.883Z",
+        "updated_at": "2022-01-08T17:31:20.883Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 13,
+        "amount_currency": "GBP",
+        "amount": "60.00",
+        "charge_date": "2021-12-10T17:31:18.899Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 28,
+    "fields": {
+        "created_on": "2022-01-15T21:00:53.022Z",
+        "updated_at": "2022-01-15T21:00:53.022Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 19,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-15T21:00:47.891Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 29,
+    "fields": {
+        "created_on": "2022-01-15T21:00:53.068Z",
+        "updated_at": "2022-01-15T21:00:53.068Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 18,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-15T21:00:47.891Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 30,
+    "fields": {
+        "created_on": "2022-01-15T21:00:53.070Z",
+        "updated_at": "2022-01-15T21:00:53.070Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 19,
+        "amount_currency": "GBP",
+        "amount": "40.00",
+        "charge_date": "2021-11-15T21:00:47.891Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 31,
+    "fields": {
+        "created_on": "2022-01-15T21:00:53.071Z",
+        "updated_at": "2022-01-15T21:00:53.071Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 19,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-15T21:00:47.891Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 32,
+    "fields": {
+        "created_on": "2022-01-15T21:00:53.072Z",
+        "updated_at": "2022-01-15T21:00:53.072Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 18,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-15T21:00:47.891Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 33,
+    "fields": {
+        "created_on": "2022-01-15T21:00:53.073Z",
+        "updated_at": "2022-01-15T21:00:53.073Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 18,
+        "amount_currency": "GBP",
+        "amount": "40.00",
+        "charge_date": "2021-12-15T21:00:47.891Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 34,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.705Z",
+        "updated_at": "2022-01-15T21:16:08.706Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 21,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 35,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.709Z",
+        "updated_at": "2022-01-15T21:16:08.709Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 10,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 36,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.712Z",
+        "updated_at": "2022-01-15T21:16:08.712Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 7,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 37,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.714Z",
+        "updated_at": "2022-01-15T21:16:08.714Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 20,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-11-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 38,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.716Z",
+        "updated_at": "2022-01-15T21:16:08.716Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 21,
+        "amount_currency": "GBP",
+        "amount": "80.00",
+        "charge_date": "2021-11-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 39,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.717Z",
+        "updated_at": "2022-01-15T21:16:08.717Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 21,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 40,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.719Z",
+        "updated_at": "2022-01-15T21:16:08.719Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 10,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 41,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.720Z",
+        "updated_at": "2022-01-15T21:16:08.720Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 7,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 42,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.721Z",
+        "updated_at": "2022-01-15T21:16:08.721Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 20,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 43,
+    "fields": {
+        "created_on": "2022-01-15T21:16:08.723Z",
+        "updated_at": "2022-01-15T21:16:08.723Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 10,
+        "amount_currency": "GBP",
+        "amount": "80.00",
+        "charge_date": "2021-12-28T21:16:06.382Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 44,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.761Z",
+        "updated_at": "2022-01-15T21:20:37.761Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 23,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-05T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 45,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.765Z",
+        "updated_at": "2022-01-15T21:20:37.765Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 22,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-05T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 46,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.766Z",
+        "updated_at": "2022-01-15T21:20:37.766Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 6,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-05T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 47,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.768Z",
+        "updated_at": "2022-01-15T21:20:37.768Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 9,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-05T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 48,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.769Z",
+        "updated_at": "2022-01-15T21:20:37.769Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 8,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2021-12-05T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 49,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.770Z",
+        "updated_at": "2022-01-15T21:20:37.770Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 23,
+        "amount_currency": "GBP",
+        "amount": "100.00",
+        "charge_date": "2021-12-05T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 50,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.771Z",
+        "updated_at": "2022-01-15T21:20:37.771Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 23,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2022-01-04T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 51,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.773Z",
+        "updated_at": "2022-01-15T21:20:37.773Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 22,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2022-01-04T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 52,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.775Z",
+        "updated_at": "2022-01-15T21:20:37.775Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 6,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2022-01-04T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 53,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.777Z",
+        "updated_at": "2022-01-15T21:20:37.777Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 9,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2022-01-04T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 54,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.779Z",
+        "updated_at": "2022-01-15T21:20:37.779Z",
+        "status": "confirmed",
+        "payment_type": "debit",
+        "participation": 8,
+        "amount_currency": "GBP",
+        "amount": "20.00",
+        "charge_date": "2022-01-04T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+},
+{
+    "model": "safe.payment",
+    "pk": 55,
+    "fields": {
+        "created_on": "2022-01-15T21:20:37.782Z",
+        "updated_at": "2022-01-15T21:20:37.782Z",
+        "status": "confirmed",
+        "payment_type": "credit",
+        "participation": 22,
+        "amount_currency": "GBP",
+        "amount": "100.00",
+        "charge_date": "2022-01-04T21:20:36.200Z",
+        "description": "",
+        "external_id": "foo_payment"
+    }
+}
+]

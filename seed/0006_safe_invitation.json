@@ -1,0 +1,102 @@
+[
+{
+    "model": "safe.invitation",
+    "pk": 3,
+    "fields": {
+        "status": "ACC",
+        "sender": 21,
+        "recipient": 23,
+        "safe": 6
+    }
+},
+{
+    "model": "safe.invitation",
+    "pk": 4,
+    "fields": {
+        "status": "ACC",
+        "sender": 23,
+        "recipient": 22,
+        "safe": 4
+    }
+},
+{
+    "model": "safe.invitation",
+    "pk": 5,
+    "fields": {
+        "status": "PND",
+        "sender": 19,
+        "recipient": 22,
+        "safe": 7
+    }
+},
+{
+    "model": "safe.invitation",
+    "pk": 6,
+    "fields": {
+        "status": "ACC",
+        "sender": 19,
+        "recipient": 20,
+        "safe": 7
+    }
+},
+{
+    "model": "safe.invitation",
+    "pk": 7,
+    "fields": {
+        "status": "ACC",
+        "sender": 22,
+        "recipient": 21,
+        "safe": 3
+    }
+},
+{
+    "model": "safe.invitation",
+    "pk": 8,
+    "fields": {
+        "status": "ACC",
+        "sender": 19,
+        "recipient": 21,
+        "safe": 7
+    }
+},
+{
+    "model": "safe.invitation",
+    "pk": 9,
+    "fields": {
+        "status": "PND",
+        "sender": 21,
+        "recipient": 20,
+        "safe": 6
+    }
+},
+{
+    "model": "safe.invitation",
+    "pk": 10,
+    "fields": {
+        "status": "PND",
+        "sender": 21,
+        "recipient": 19,
+        "safe": 6
+    }
+},
+{
+    "model": "safe.invitation",
+    "pk": 11,
+    "fields": {
+        "status": "ACC",
+        "sender": 19,
+        "recipient": 23,
+        "safe": 7
+    }
+},
+{
+    "model": "safe.invitation",
+    "pk": 12,
+    "fields": {
+        "status": "ACC",
+        "sender": 21,
+        "recipient": 22,
+        "safe": 6
+    }
+}
+]

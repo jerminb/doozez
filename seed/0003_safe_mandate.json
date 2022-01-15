@@ -1,0 +1,47 @@
+[
+{
+    "model": "safe.mandate",
+    "pk": 24,
+    "fields": {
+        "status": "created",
+        "scheme": "bacs",
+        "mandate_external_id": "MD000HN2XQSK62"
+    }
+},
+{
+    "model": "safe.mandate",
+    "pk": 25,
+    "fields": {
+        "status": "created",
+        "scheme": "bacs",
+        "mandate_external_id": "MD000HN2XQSK62"
+    }
+},
+{
+    "model": "safe.mandate",
+    "pk": 26,
+    "fields": {
+        "status": "created",
+        "scheme": "bacs",
+        "mandate_external_id": "MD000HN2XQSK62"
+    }
+},
+{
+    "model": "safe.mandate",
+    "pk": 27,
+    "fields": {
+        "status": "created",
+        "scheme": "bacs",
+        "mandate_external_id": "MD000HN2XQSK62"
+    }
+},
+{
+    "model": "safe.mandate",
+    "pk": 28,
+    "fields": {
+        "status": "created",
+        "scheme": "bacs",
+        "mandate_external_id": "MD000HN2XQSK62"
+    }
+}
+]

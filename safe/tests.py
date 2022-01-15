@@ -377,7 +377,6 @@ class UsersManagersTests(TestCase):
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(response.data['results'][0]['id'], alice_payment.pk)
 
-
     def test_post_participants(self):
         User = get_user_model()
         alice = User.objects.create_user(email='alice@user.com', password='foo')

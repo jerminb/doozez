@@ -1,0 +1,288 @@
+[
+{
+    "model": "safe.participation",
+    "pk": 1,
+    "fields": {
+        "user_role": "SYS",
+        "status": "ACT",
+        "invitation": null,
+        "user": 1,
+        "safe": 1,
+        "payment_method": 1,
+        "win_sequence": 2
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 2,
+    "fields": {
+        "user_role": "INT",
+        "status": "ACT",
+        "invitation": null,
+        "user": 2,
+        "safe": 1,
+        "payment_method": 2,
+        "win_sequence": 1
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 3,
+    "fields": {
+        "user_role": "PCT",
+        "status": "ACT",
+        "invitation": 1,
+        "user": 3,
+        "safe": 1,
+        "payment_method": 3,
+        "win_sequence": 0
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 4,
+    "fields": {
+        "user_role": "SYS",
+        "status": "ACT",
+        "invitation": null,
+        "user": 1,
+        "safe": 2,
+        "payment_method": 1,
+        "win_sequence": null
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 5,
+    "fields": {
+        "user_role": "INT",
+        "status": "ACT",
+        "invitation": null,
+        "user": 2,
+        "safe": 2,
+        "payment_method": 2,
+        "win_sequence": null
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 6,
+    "fields": {
+        "user_role": "PCT",
+        "status": "ACT",
+        "invitation": 8,
+        "user": 21,
+        "safe": 7,
+        "payment_method": 11,
+        "win_sequence": 2
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 7,
+    "fields": {
+        "user_role": "PCT",
+        "status": "ACT",
+        "invitation": 3,
+        "user": 23,
+        "safe": 6,
+        "payment_method": 13,
+        "win_sequence": 2
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 8,
+    "fields": {
+        "user_role": "PCT",
+        "status": "ACT",
+        "invitation": 6,
+        "user": 20,
+        "safe": 7,
+        "payment_method": 12,
+        "win_sequence": 4
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 9,
+    "fields": {
+        "user_role": "PCT",
+        "status": "ACT",
+        "invitation": 11,
+        "user": 23,
+        "safe": 7,
+        "payment_method": 13,
+        "win_sequence": 3
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 10,
+    "fields": {
+        "user_role": "PCT",
+        "status": "ACT",
+        "invitation": 12,
+        "user": 22,
+        "safe": 6,
+        "payment_method": 9,
+        "win_sequence": 1
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 11,
+    "fields": {
+        "user_role": "PCT",
+        "status": "CPT",
+        "invitation": 7,
+        "user": 21,
+        "safe": 3,
+        "payment_method": 11,
+        "win_sequence": 1
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 13,
+    "fields": {
+        "user_role": "PCT",
+        "status": "CPT",
+        "invitation": 4,
+        "user": 22,
+        "safe": 4,
+        "payment_method": 9,
+        "win_sequence": 2
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 14,
+    "fields": {
+        "user_role": "INT",
+        "status": "CPT",
+        "invitation": null,
+        "user": 22,
+        "safe": 3,
+        "payment_method": 9,
+        "win_sequence": 2
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 15,
+    "fields": {
+        "user_role": "SYS",
+        "status": "CPT",
+        "invitation": null,
+        "user": 1,
+        "safe": 3,
+        "payment_method": 1,
+        "win_sequence": 0
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 16,
+    "fields": {
+        "user_role": "INT",
+        "status": "CPT",
+        "invitation": null,
+        "user": 23,
+        "safe": 4,
+        "payment_method": 13,
+        "win_sequence": 1
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 17,
+    "fields": {
+        "user_role": "SYS",
+        "status": "CPT",
+        "invitation": null,
+        "user": 1,
+        "safe": 4,
+        "payment_method": 1,
+        "win_sequence": 0
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 18,
+    "fields": {
+        "user_role": "INT",
+        "status": "CPT",
+        "invitation": null,
+        "user": 19,
+        "safe": 5,
+        "payment_method": 10,
+        "win_sequence": 1
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 19,
+    "fields": {
+        "user_role": "SYS",
+        "status": "CPT",
+        "invitation": null,
+        "user": 1,
+        "safe": 5,
+        "payment_method": 1,
+        "win_sequence": 0
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 20,
+    "fields": {
+        "user_role": "INT",
+        "status": "ACT",
+        "invitation": null,
+        "user": 21,
+        "safe": 6,
+        "payment_method": 11,
+        "win_sequence": 3
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 21,
+    "fields": {
+        "user_role": "SYS",
+        "status": "ACT",
+        "invitation": null,
+        "user": 1,
+        "safe": 6,
+        "payment_method": 1,
+        "win_sequence": 0
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 22,
+    "fields": {
+        "user_role": "INT",
+        "status": "ACT",
+        "invitation": null,
+        "user": 19,
+        "safe": 7,
+        "payment_method": 10,
+        "win_sequence": 1
+    }
+},
+{
+    "model": "safe.participation",
+    "pk": 23,
+    "fields": {
+        "user_role": "SYS",
+        "status": "ACT",
+        "invitation": null,
+        "user": 1,
+        "safe": 7,
+        "payment_method": 1,
+        "win_sequence": 0
+    }
+}
+]

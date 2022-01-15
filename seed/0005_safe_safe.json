@@ -1,0 +1,86 @@
+[
+{
+    "model": "safe.safe",
+    "pk": 1,
+    "fields": {
+        "status": "STG",
+        "name": "1530-30-10",
+        "monthly_payment": 10.0,
+        "total_participants": 1,
+        "initiator": 2,
+        "job": 1
+    }
+},
+{
+    "model": "safe.safe",
+    "pk": 2,
+    "fields": {
+        "status": "PPT",
+        "name": "1549-01-04",
+        "monthly_payment": 50.0,
+        "total_participants": 1,
+        "initiator": 2,
+        "job": null
+    }
+},
+{
+    "model": "safe.safe",
+    "pk": 3,
+    "fields": {
+        "status": "CPT",
+        "name": "Later follow radio recognize candidate.",
+        "monthly_payment": 20.0,
+        "total_participants": 1,
+        "initiator": 22,
+        "job": null
+    }
+},
+{
+    "model": "safe.safe",
+    "pk": 4,
+    "fields": {
+        "status": "CPT",
+        "name": "Operation parent state operation suddenly key.",
+        "monthly_payment": 20.0,
+        "total_participants": 1,
+        "initiator": 23,
+        "job": null
+    }
+},
+{
+    "model": "safe.safe",
+    "pk": 5,
+    "fields": {
+        "status": "CPT",
+        "name": "Central general matter ahead forward TV.",
+        "monthly_payment": 20.0,
+        "total_participants": 1,
+        "initiator": 19,
+        "job": null
+    }
+},
+{
+    "model": "safe.safe",
+    "pk": 6,
+    "fields": {
+        "status": "STD",
+        "name": "Officer throw school own to bad each.",
+        "monthly_payment": 20.0,
+        "total_participants": 1,
+        "initiator": 21,
+        "job": null
+    }
+},
+{
+    "model": "safe.safe",
+    "pk": 7,
+    "fields": {
+        "status": "STD",
+        "name": "Different security why country rule.",
+        "monthly_payment": 20.0,
+        "total_participants": 1,
+        "initiator": 19,
+        "job": null
+    }
+}
+]
