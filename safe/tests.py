@@ -13,6 +13,7 @@ from rest_framework import status
 from .models import Safe, Invitation, InvitationStatus, PaymentMethod, DoozezJob, DoozezJobType, DoozezTaskStatus, \
     DoozezTaskType, DoozezTask, Participation, ParticipantRole, SafeStatus, ParticipationStatus, PaymentMethodStatus, \
     PaymentStatus, Payment
+from .services import SafeService
 from .utils import send_notification_to_user
 
 
@@ -275,6 +276,42 @@ class UsersManagersTests(TestCase):
         response = client.get(reverse('safe-list'),
                               content_type='application/json')
         self.assertEqual(response.data['count'], 0)
+
+    def test_get_safe_with_montly_payment(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
+        safe_service = SafeService()
+        safelarge = safe_service.createSafe(alice, 'safelarge', 10, payment_method.pk)
+        safesmall = safe_service.createSafe(alice, 'safelarge', 1, payment_method.pk)
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('safe-list') + "?from-monthly-payment=5",
+                              content_type='application/json')
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], safelarge.pk)
+        response = client.get(reverse('safe-list') + "?to-monthly-payment=5",
+                              content_type='application/json')
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], safesmall.pk)
+
+    def test_get_safe_with_date(self):
+        User = get_user_model()
+        alice = User.objects.create_user(email='alice@user.com', password='foo')
+        payment_method = PaymentMethod.objects.create(user=alice,
+                                                      is_default=True,
+                                                      status=PaymentMethodStatus.ExternallyActivated)
+        safe_service = SafeService()
+        safelarge = safe_service.createSafe(alice, 'safelarge', 10, payment_method.pk)
+        safesmall = safe_service.createSafe(alice, 'safelarge', 1, payment_method.pk)
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('safe-list') + "?from-monthly-payment=5",
+                              content_type='application/json')
+        self.assertEqual(response.data['count'], 1)
+        self.assertEqual(response.data['results'][0]['id'], safelarge.pk)
 
     def test_get_safe_for_declined_invitation(self):
         User = get_user_model()

@@ -184,6 +184,15 @@ class SafeViewSet(OwnerViewSet):
 
     def get_queryset(self):
         result = super().get_queryset().distinct()
+        from_monthly_payment = self.request.query_params.get('from-monthly-payment')
+        to_monthly_payment = self.request.query_params.get('to-monthly-payment')
+        safe_status = self.request.query_params.get('status')
+        if from_monthly_payment is not None:
+            result = result.filter(monthly_payment__gte=from_monthly_payment)
+        if to_monthly_payment is not None:
+            result = result.filter(monthly_payment__lte=to_monthly_payment)
+        if safe_status is not None:
+            result = result.filter(status=safe_status)
         return result
 
     def create(self, request):
