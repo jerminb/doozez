@@ -1,0 +1,13 @@
+[
+{
+    "model": "safe.product",
+    "pk": 1,
+    "fields": {
+        "created_on": "2021-11-03T18:05:10.378Z",
+        "updated_at": "2021-11-03T18:05:10.378Z",
+        "name": "dummy_product",
+        "price": 100,
+        "description": "dummy description"
+    }
+}
+]
