@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 from rest_auth.registration.serializers import RegisterSerializer
 
 from .models import Safe, DoozezUser, Invitation, ActionPayload, Participation, PaymentMethod, DoozezJob, DoozezTask, \
-    Payment
+    Payment, Product
 from .fields import NullableJSONField
 
 
@@ -36,10 +36,11 @@ class DoozezRegisterSerializer(RegisterSerializer):
 
 class SafeSerializer(serializers.ModelSerializer):
     payment_method_id = serializers.IntegerField(required=False, allow_null=True)
+    product_id = serializers.IntegerField(required=False, allow_null=True)
 
     class Meta:
         model = Safe
-        fields = ['id', 'status', 'name', 'monthly_payment', 'id', 'initiator', 'payment_method_id']
+        fields = ['id', 'status', 'name', 'monthly_payment', 'id', 'initiator', 'payment_method_id', 'product_id']
 
 
 class InvitationReadSerializer(serializers.ModelSerializer):
@@ -80,6 +81,12 @@ class PaymentMethodReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentMethod
         fields = ['id', 'is_default', 'redirect_url', 'status', 'name']
+
+
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ['id', 'name', 'price', 'description']
 
 
 class ParticipationListSerializer(serializers.ModelSerializer):

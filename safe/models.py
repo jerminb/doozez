@@ -307,6 +307,12 @@ class Invitation(models.Model):
         pass
 
 
+class Product(TimeStampedModel):
+    name = models.TextField()
+    description = models.TextField()
+    price = models.FloatField(validators=[MinValueValidator(0.0), ], default=0)
+
+
 class ParticipantRole(models.TextChoices):
     Initiator = 'INT', _('Initiator')
     Participant = 'PCT', _('Participant')
@@ -335,6 +341,7 @@ class Participation(models.Model):
     invitation = models.ForeignKey(Invitation, on_delete=models.CASCADE, related_name='invitation', null=True)
     user = models.ForeignKey(DoozezUser, on_delete=models.CASCADE, related_name='%(class)s_user')
     safe = models.ForeignKey(Safe, on_delete=models.CASCADE, related_name='participations_safe')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='%(class)s_product', null=True)
     payment_method = models.ForeignKey(PaymentMethod, on_delete=models.PROTECT, related_name='payment_method')
     win_sequence = models.PositiveIntegerField(null=True)
 

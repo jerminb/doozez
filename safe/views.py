@@ -27,9 +27,9 @@ from .permissions import IsOwner
 from .serializers import UserSerializer, GroupSerializer, SafeSerializer, InvitationReadSerializer, \
     InvitationUpsertSerializer, ActionPayloadSerializer, ParticipationListSerializer, \
     ParticipationRetrieveSerializer, PaymentMethodSerializer, PaymentMethodReadSerializer, JobSerializer, \
-    PaymentSerializer
+    PaymentSerializer, ProductSerializer
 from .models import Safe, DoozezUser, Invitation, Action, Participation, PaymentMethod, DoozezJob, InvitationStatus, \
-    Payment
+    Payment, Product
 from .services import InvitationService, SafeService, PaymentMethodService, ParticipationService, EventService
 
 
@@ -191,8 +191,13 @@ class SafeViewSet(OwnerViewSet):
             result = result.filter(monthly_payment__gte=from_monthly_payment)
         if to_monthly_payment is not None:
             result = result.filter(monthly_payment__lte=to_monthly_payment)
-        if safe_status is not None:
-            result = result.filter(status=safe_status)
+        if safe_status:
+            all_statuses = safe_status.split(',')
+            status_filter = Q(status=all_statuses[0])
+            if len(all_statuses) > 1:
+                for s in all_statuses[1:]:
+                    status_filter = (status_filter | Q(status=s))
+            result = result.filter(status_filter)
         return result
 
     def create(self, request):
@@ -205,7 +210,8 @@ class SafeViewSet(OwnerViewSet):
         if serializer.is_valid():
             safe = service.createSafe(user, serializer.validated_data['name'],
                                       serializer.validated_data['monthly_payment'],
-                                      serializer.validated_data['payment_method_id'])
+                                      serializer.validated_data['payment_method_id'],
+                                      serializer.validated_data['product_id'])
             return Response(data=SafeSerializer(safe, context={'request': request}).data,
                             status=status.HTTP_201_CREATED)
         else:
@@ -292,16 +298,22 @@ class InvitationViewSet(OwnerViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def get_payment_method_id_from_json(self, json_data):
-        extra_data = json.loads(json_data)
+    def get_payment_method_id_from_json(self, extra_data):
         return extra_data.get("payment_method_id", None)
+
+    def get_product_id_from_json(self, extra_data):
+        return extra_data.get("product_id", None)
 
     def accept_invitation(self, json_data):
         invitation = self.get_object()
-        payment_method_id = self.get_payment_method_id_from_json(json_data)
+        extra_data = json.loads(json_data)
+        payment_method_id = self.get_payment_method_id_from_json(extra_data)
+        product_id = self.get_product_id_from_json(extra_data)
         if payment_method_id is None:
             raise ValueError("payment_method_id is null")
-        return self.invitation_service.acceptInvitation(invitation, payment_method_id, self.request.user)
+        if product_id is None:
+            raise ValueError("product_id is null")
+        return self.invitation_service.acceptInvitation(invitation, payment_method_id, product_id, self.request.user)
 
     def decline_invitation(self, json_data):
         invitation = self.get_object()
@@ -332,6 +344,35 @@ class InvitationViewSet(OwnerViewSet):
     permission_classes = [permissions.IsAuthenticated]
     invitation_service = InvitationService()
     queryset = Invitation.objects.all()
+
+
+class ProductViewSet(viewsets.ModelViewSet):
+    """
+    ReadOnly ViewSet for Participation
+    """
+    def list(self, request):
+        from_price = self.request.query_params.get('from_price')
+        to_price = self.request.query_params.get('to_price')
+        result = self.get_queryset()
+        if from_price is not None:
+            result = result.filter(price__gte=from_price)
+        if to_price is not None:
+            result = result.filter(price__lte=to_price)
+        serializer = ProductSerializer(result, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        return Response("", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def destroy(self, request, pk=None):
+        return Response("", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def update(self, request, pk=None):
+        return Response("", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    queryset = Product.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ProductSerializer
 
 
 class ParticipationViewSet(viewsets.ModelViewSet):

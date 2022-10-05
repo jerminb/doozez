@@ -16,7 +16,7 @@ from .decorators import clear, doozez_task
 from .models import Safe, PaymentMethod, InvitationStatus, Participation, ParticipantRole, PaymentMethodStatus, \
     MandateStatus, DoozezTask, DoozezTaskStatus, DoozezTaskType, DoozezJob, DoozezJobType, SafeStatus, \
     ParticipationStatus, Mandate, PaymentStatus, Invitation, DoozezExecutableStatus, Event, Instalment, \
-    InstalmentStatus, Payment
+    InstalmentStatus, Payment, Product
 from .notification import NotificationProvider
 from .services import InvitationService, SafeService, PaymentMethodService, TaskService, UserService, \
     ParticipationService, PaymentService, TaskPlanner, JobService, JobExecutor, EventExecutor, EventService, \
@@ -72,16 +72,18 @@ class ServiceTest(TestCase):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         bob = self.User.objects.create_user(email='bob@user.com', password='foo')
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        product = Product.objects.create(name="prodfoo", price=10)
         payment_method = PaymentMethod.objects.create(user=bob,
                                                       is_default=True,
                                                       status=PaymentMethodStatus.ExternallyActivated)
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
-        invitation = service.acceptInvitation(invitation, payment_method.pk, bob)
+        invitation = service.acceptInvitation(invitation, payment_method.pk, product.pk, bob)
         participation = Participation.objects.first()
         self.assertEqual(invitation.status, InvitationStatus.Accepted)
         self.assertEqual(participation.user.pk, bob.pk)
         self.assertEqual(participation.user_role, ParticipantRole.Participant)
+        self.assertEqual(participation.product.pk, product.pk)
 
     def test_accept_invite_with_notification(self):
         mock_service = create_autospec(NotificationService)
@@ -92,9 +94,10 @@ class ServiceTest(TestCase):
         payment_method = PaymentMethod.objects.create(user=bob,
                                                       is_default=True,
                                                       status=PaymentMethodStatus.ExternallyActivated)
+        product = Product.objects.create(name="prodfoo", price=10)
         service = InvitationService(mock_service)
         invitation = service.createInvitation(alice, bob, safe)
-        invitation = service.acceptInvitation(invitation, payment_method.pk, bob)
+        invitation = service.acceptInvitation(invitation, payment_method.pk, product.pk, bob)
         participation = Participation.objects.first()
         self.assertEqual(invitation.status, InvitationStatus.Accepted)
         self.assertEqual(participation.user.pk, bob.pk)
@@ -105,10 +108,11 @@ class ServiceTest(TestCase):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         bob = self.User.objects.create_user(email='bob@user.com', password='foo')
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        product = Product.objects.create(name="prodfoo", price=10)
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
         with self.assertRaises(ValidationError):
-            service.acceptInvitation(invitation, 1, bob)
+            service.acceptInvitation(invitation, 1, product.pk, bob)
 
     def test_accept_invite_without_active_payment_method(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
@@ -116,20 +120,22 @@ class ServiceTest(TestCase):
         payment_method = PaymentMethod.objects.create(user=bob,
                                                       is_default=True)
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
+        product = Product.objects.create(name="prodfoo", price=10)
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
         with self.assertRaises(ValidationError):
-            service.acceptInvitation(invitation, payment_method.pk, bob)
+            service.acceptInvitation(invitation, payment_method.pk, product.pk, bob)
 
     def test_accept_invite_others_invite(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         bob = self.User.objects.create_user(email='bob@user.com', password='foo')
         safe = Safe.objects.create(name='safebar', monthly_payment=1, total_participants=1, initiator=alice)
         payment_method = PaymentMethod.objects.create(user=bob, is_default=True)
+        product = Product.objects.create(name="prodfoo", price=10)
         service = InvitationService()
         invitation = service.createInvitation(alice, bob, safe)
         with self.assertRaises(ValidationError):
-            service.acceptInvitation(invitation, payment_method.pk, alice)
+            service.acceptInvitation(invitation, payment_method.pk, product.pk, alice)
 
     def test_remove_invite(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
@@ -163,14 +169,16 @@ class ServiceTest(TestCase):
         payment_method = PaymentMethod.objects.create(user=alice,
                                                       is_default=True,
                                                       status=PaymentMethodStatus.ExternallyActivated)
+        product = Product.objects.create(name="prodfoo", price=10)
         service = SafeService()
         participation_service = ParticipationService()
-        safe = service.createSafe(alice, 'foosafe', 1, payment_method.pk)
+        safe = service.createSafe(alice, 'foosafe', 1, payment_method.pk, product.pk)
         participations = participation_service.getParticipationForSafe(safe_id=safe.pk)
         participation = participations.filter(user=alice).first()
         self.assertEqual(len(participations), 2)
         self.assertEqual(participation.user.pk, alice.pk)
         self.assertEqual(participation.user_role, ParticipantRole.Initiator)
+        self.assertEqual(participation.product.pk, product.pk)
         participation = participations.filter(user__is_system=True).first()
         self.assertEqual(participation.user_role, ParticipantRole.System)
 
@@ -178,9 +186,10 @@ class ServiceTest(TestCase):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
         payment_method = PaymentMethod.objects.create(user=alice,
                                                       is_default=True)
+        product = Product.objects.create(name="prodfoo", price=10)
         service = SafeService()
         with self.assertRaises(ValidationError):
-            service.createSafe(alice, 'foosafe', 1, payment_method.pk)
+            service.createSafe(alice, 'foosafe', 1, payment_method.pk, product.pk)
 
     def test_get_all_payments_for_user(self):
         alice = self.User.objects.create_user(email='alice@user.com', password='foo')
@@ -701,8 +710,9 @@ class ServiceTest(TestCase):
         joe_payment_method = PaymentMethod.objects.create(user=joe,
                                                           is_default=True,
                                                           status=PaymentMethodStatus.ExternallyActivated)
+        product = Product.objects.create(name="prodfoo", price=10)
         safe_service = SafeService()
-        safe = safe_service.createSafe(alice, 'safebar', 10, payment_method.pk)
+        safe = safe_service.createSafe(alice, 'safebar', 10, payment_method.pk, product.pk)
         participation = Participation.objects.create(user=bob,
                                                      safe=safe,
                                                      user_role=ParticipantRole.Participant,

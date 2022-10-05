@@ -12,7 +12,7 @@ from rest_framework import status
 
 from .models import Safe, Invitation, InvitationStatus, PaymentMethod, DoozezJob, DoozezJobType, DoozezTaskStatus, \
     DoozezTaskType, DoozezTask, Participation, ParticipantRole, SafeStatus, ParticipationStatus, PaymentMethodStatus, \
-    PaymentStatus, Payment
+    PaymentStatus, Payment, Product
 from .services import SafeService
 from .utils import send_notification_to_user
 
@@ -156,6 +156,7 @@ class UsersManagersTests(TestCase):
         alice = User.objects.create_user(email='alice@user.com', password='foo')
         safealice = Safe.objects.create(name='safealice', monthly_payment=1, total_participants=1, initiator=alice)
         bob = User.objects.create_user(email='bob@user.com', password='foo')
+        product = Product.objects.create(name="prodfoo", price=10)
         invitation = Invitation.objects.create(status=InvitationStatus.Pending, sender=alice, recipient=bob,
                                                safe=safealice)
         bob_payment_method = PaymentMethod.objects.create(user=bob,
@@ -163,7 +164,7 @@ class UsersManagersTests(TestCase):
                                                           status=PaymentMethodStatus.ExternallyActivated)
         data = {
             'action': 'ACCEPT',
-            'json_data': '{"payment_method_id":' + str(bob_payment_method.pk) + '}'
+            'json_data': '{"payment_method_id":' + str(bob_payment_method.pk) + ',"product_id":' + str(product.pk) + '}'
         }
         client = APIClient()
         client.login(username='bob@user.com', password='foo')
@@ -233,10 +234,12 @@ class UsersManagersTests(TestCase):
         payment_method = PaymentMethod.objects.create(user=alice,
                                                       is_default=True,
                                                       status=PaymentMethodStatus.ExternallyActivated)
+        product = Product.objects.create(name="prodfoo", price=10)
         data = {
             'name': 'foosafe',
             'monthly_payment': '2',
-            'payment_method_id': payment_method.pk
+            'payment_method_id': payment_method.pk,
+            'product_id': product.pk
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
@@ -261,10 +264,12 @@ class UsersManagersTests(TestCase):
         payment_method = PaymentMethod.objects.create(user=alice,
                                                       is_default=True,
                                                       status=PaymentMethodStatus.ExternallyActivated)
+        product = Product.objects.create(name="prodfoo", price=10)
         data = {
             'name': 'foosafe',
             'monthly_payment': '2',
-            'payment_method_id': payment_method.pk
+            'payment_method_id': payment_method.pk,
+            'product_id': product.pk
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
@@ -283,9 +288,10 @@ class UsersManagersTests(TestCase):
         payment_method = PaymentMethod.objects.create(user=alice,
                                                       is_default=True,
                                                       status=PaymentMethodStatus.ExternallyActivated)
+        product = Product.objects.create(name="prodfoo", price=10)
         safe_service = SafeService()
-        safelarge = safe_service.createSafe(alice, 'safelarge', 10, payment_method.pk)
-        safesmall = safe_service.createSafe(alice, 'safelarge', 1, payment_method.pk)
+        safelarge = safe_service.createSafe(alice, 'safelarge', 10, payment_method.pk, product.pk)
+        safesmall = safe_service.createSafe(alice, 'safelarge', 1, payment_method.pk, product.pk)
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
         response = client.get(reverse('safe-list') + "?from-monthly-payment=5",
@@ -303,9 +309,10 @@ class UsersManagersTests(TestCase):
         payment_method = PaymentMethod.objects.create(user=alice,
                                                       is_default=True,
                                                       status=PaymentMethodStatus.ExternallyActivated)
+        product = Product.objects.create(name="prodfoo", price=10)
         safe_service = SafeService()
-        safelarge = safe_service.createSafe(alice, 'safelarge', 10, payment_method.pk)
-        safesmall = safe_service.createSafe(alice, 'safelarge', 1, payment_method.pk)
+        safelarge = safe_service.createSafe(alice, 'safelarge', 10, payment_method.pk, product.pk)
+        safesmall = safe_service.createSafe(alice, 'safelarge', 1, payment_method.pk, product.pk)
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
         response = client.get(reverse('safe-list') + "?from-monthly-payment=5",
@@ -336,10 +343,12 @@ class UsersManagersTests(TestCase):
         payment_method = PaymentMethod.objects.create(user=alice,
                                                       is_default=True,
                                                       status=PaymentMethodStatus.ExternallyActivated)
+        product = Product.objects.create(name="prodfoo", price=10)
         data = {
             'name': 'foosafe',
             'monthly_payment': '2',
-            'payment_method_id': payment_method.pk
+            'payment_method_id': payment_method.pk,
+            'product_id': product.pk
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
@@ -453,10 +462,12 @@ class UsersManagersTests(TestCase):
         payment_method = PaymentMethod.objects.create(user=alice,
                                                       is_default=True,
                                                       status=PaymentMethodStatus.ExternallyActivated)
+        product = Product.objects.create(name="prodfoo", price=10)
         data = {
             'name': 'foosafe',
             'monthly_payment': '2',
-            'payment_method_id': payment_method.pk
+            'payment_method_id': payment_method.pk,
+            'product_id': product.pk
         }
         client = APIClient()
         client.login(username='alice@user.com', password='foo')
@@ -541,3 +552,13 @@ class UsersManagersTests(TestCase):
     def test_send_notification_for_non_user(self):
         with self.assertRaises(ValidationError):
             send_notification_to_user(204, "will fail", "will fail", "")
+
+    def test_get_product_in_range(self):
+        User = get_user_model()
+        User.objects.create_user(email='alice@user.com', password='foo')
+        Product.objects.create(name="prodfoo", price=10)
+        client = APIClient()
+        client.login(username='alice@user.com', password='foo')
+        response = client.get(reverse('product-list') + "?from_price=10",
+                              content_type='application/json')
+        self.assertEqual(response.data['count'], 1)

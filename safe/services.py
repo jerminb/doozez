@@ -15,7 +15,7 @@ from .client_interfaces import PaymentGatewayClient
 from .models import Invitation, Safe, InvitationStatus, Participation, PaymentMethod, \
     ParticipantRole, GCFlow, Mandate, DoozezTask, DoozezTaskStatus, ParticipationStatus, SafeStatus, PaymentStatus, \
     Payment, DoozezTaskType, DoozezJob, DoozezJobType, GCEvent, Event, DoozezExecutableStatus, DoozezUser, Instalment, \
-    InstalmentStatus
+    InstalmentStatus, Product
 from .decorators import run
 
 from django.core.exceptions import ValidationError
@@ -74,7 +74,7 @@ class InvitationService(object):
         self.try_notify(EventType.InvitationCreated, recipient, current_user, safe)
         return invitation
 
-    def acceptInvitation(self, invitation, payment_method_id, current_user):
+    def acceptInvitation(self, invitation, payment_method_id, product_id, current_user):
         if invitation.status != InvitationStatus.Pending and invitation.status != InvitationStatus.Accepted:
             raise ValidationError("only pending or accepted invitations can be accepted")
         if invitation.recipient != current_user:
@@ -87,8 +87,9 @@ class InvitationService(object):
             raise ValidationError("no payment method found for user")
         if not payment_method.is_active():
             raise ValidationError("payment method {} is not active".format(payment_method_id))
+        product = Product.objects.get(pk=product_id)
         participation_service.createParticipation(invitation.recipient, invitation, invitation.safe,
-                                                  payment_method, ParticipantRole.Participant)
+                                                  payment_method, ParticipantRole.Participant, product)
         invitation.accept()
         invitation.save()
         return invitation
@@ -261,9 +262,9 @@ class ParticipationService(object):
     def getActiveParticipationsForSafe(self, safe_id):
         return self.getParticipationWithQ(Q(safe=safe_id) & ~Q(status=ParticipationStatus.Left)).all()
 
-    def createParticipation(self, user, invitation, safe, payment_method, role):
+    def createParticipation(self, user, invitation, safe, payment_method, role, product):
         participation = Participation(user=user, invitation=invitation, safe=safe,
-                                      payment_method=payment_method, user_role=role)
+                                      payment_method=payment_method, user_role=role, product=product)
         participation.save()
         return participation
 
@@ -640,13 +641,14 @@ class SafeService(object):
     def getSafeWithId(self, safe_id):
         return Safe.objects.get(pk=safe_id)
 
-    def createSafe(self, current_user, name, monthly_payment, payment_method_id):
+    def createSafe(self, current_user, name, monthly_payment, payment_method_id, product_id):
         payment_method = self.payment_method_service.getAllPaymentMethodsForUser(current_user) \
             .filter(pk=payment_method_id).first()
         if payment_method is None:
             raise ValidationError("no payment method found for user")
         if not payment_method.is_active():
             raise ValidationError("payment method {} is not active".format(payment_method_id))
+        product = Product.objects.get(pk=product_id)
         safe = Safe(name=name, monthly_payment=monthly_payment, total_participants=1,
                     initiator=current_user)
         safe.save()
@@ -654,7 +656,7 @@ class SafeService(object):
         self.participation_service.createParticipation(user=current_user, safe=safe,
                                                        payment_method=payment_method,
                                                        role=ParticipantRole.Initiator,
-                                                       invitation=None)
+                                                       invitation=None, product=product)
         return safe
 
     def validateSafeForStart(self, current_user, safe, force):
